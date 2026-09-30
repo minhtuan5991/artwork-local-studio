@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Artwork Local Studio — Nhận ảnh web",
+  "version": "0.2.0",
+  "description": "Nhận ảnh website, chọn rectangle/lasso và chuyển vào app Qwen local.",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA/VUPPmOfgU+vdu+VZSS84i90uFOzlXEL8t5DXlX79yChyEdrq+9VP8DyOSxQt4IvU9S3eJK7STDTle6MONCn26srvBE/RGN2ns710y8e8VOspOucb1io484SOTfCMfp4ASfvg/jA/GpjwcqvSzRFDYb+N8ggjqTjLv4m35F8Gg67Yi0aK60fhHb/KItWJDkxCHGhm/0IloLTxs3tewYb4rTb13Yhj2ioD776qZEO2OdoK/CC2nqsMYVazYZ0/Hr20ghLOZfCLgbqVcVt/gvXR8iez+zZkwdh/v5RB+gW2eMleGXGTJ5acYEsAOp1nQLHMv4Z+vOADpu9Nh+ieHj4VwIDAQAB",
+  "permissions": ["contextMenus", "storage", "scripting", "activeTab", "nativeMessaging"],
+  "optional_host_permissions": ["https://*/*", "http://*/*"],
+  "background": {"service_worker": "background.js"},
+  "icons": {"16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png", "128": "icons/icon-128.png"},
+  "action": {"default_title": "Artwork Local Studio · chọn ảnh trong trang", "default_icon": {"16": "icons/icon-16.png", "32": "icons/icon-32.png", "48": "icons/icon-48.png"}}
+}

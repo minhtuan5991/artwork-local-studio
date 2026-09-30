@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Artwork Local Studio · Nhận ảnh web</title><link rel="stylesheet" href="selector.css"></head>
+<body>
+<header>
+<div class="brand"><img src="logo.svg" alt="" width="42" height="42"><div><h1>Artwork Local Studio</h1><p>Chọn artwork từ website</p></div></div>
+<div class="output" aria-label="Thiết lập đầu ra">
+<label>Kích thước<select id="size"><option value="1024">1K · 1024</option><option value="2048">2K · 2048</option></select></label>
+<label>Nền<select id="background"><option value="transparent">Trong suốt</option><option value="white">Trắng</option><option value="chroma">Chroma</option></select></label>
+<label>Chroma<input id="chroma" type="color" value="#00ff00"></label>
+<label>Chi tiết<select id="detail"><option value="preserve">Giữ thiết kế</option><option value="restore">Khôi phục</option></select></label>
+<button class="primary" id="send" disabled>Gửi vào Queue local</button>
+</div></header>
+<main>
+<aside>
+<div class="library-title"><h2>Ảnh trên trang</h2><span id="imageCount" class="count">0</span></div>
+<p class="hint">Click đúp để chọn và tải ảnh.</p>
+<div id="images" aria-label="Thư viện ảnh"></div>
+<button id="load">Tải ảnh đã chọn</button>
+<details><summary>Nhập URL ảnh</summary><label>Địa chỉ ảnh<input id="url" placeholder="https://..." type="url"></label></details>
+<p class="privacy">Ảnh được chuyển tới app trên máy qua kết nối local.</p>
+</aside>
+<section class="editor">
+<div class="toolbar">
+<div class="selection-tools"><label>Vùng chọn<select id="mode"><option value="rectangle">Rectangle</option><option value="lasso">Lasso</option><option value="view">Xem / pan</option></select></label>
+<button id="clear">Bỏ chọn</button><button id="zoomOut" aria-label="Thu nhỏ">−</button><button id="zoomIn" aria-label="Phóng to">+</button><button id="reset">Reset zoom</button>
+<span class="hint">Cuộn để zoom · Alt / chuột giữa để pan</span></div>
+<div class="rotation-tools"><span>Xoay nguồn</span><button id="rotateLeft" title="Xoay trái 90 độ">−90°</button>
+<label class="angle"><span class="sr-only">Góc xoay theo chiều kim đồng hồ</span><input id="angle" type="number" min="-180" max="180" step="0.1" value="0"><span>°</span></label>
+<button id="rotateRight" title="Xoay phải 90 độ">+90°</button><button id="resetAngle">Đặt lại</button>
+<span class="hint">Xoay thẳng trước khi khoanh vùng</span></div>
+</div>
+<div id="viewport"><canvas id="canvas" aria-label="Ảnh nguồn và vùng chọn"></canvas><div id="placeholder"><strong>Chọn ảnh để bắt đầu</strong><span>Click đúp ảnh bên trái để tải vào vùng làm việc.</span></div></div>
+<div class="statusbar"><span class="local-dot"></span><p id="status" role="status" aria-live="polite">Mở app và đăng ký kết nối trong Cài đặt → Ảnh website.</p></div>
+</section></main><script type="module" src="selector.js"></script></body></html>

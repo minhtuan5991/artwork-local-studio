@@ -1,0 +1,14 @@
+{
+  "model": "Qwen-Image-2.1",
+  "license_url": "https://huggingface.co/Qwen/Qwen-Image-2.1/blob/main/LICENSE",
+  "files": [
+    {"key": "denoiser", "name": "qwen-image-2.1-Q4_K_M.gguf", "size": 4199565024, "sha256": "631d532e7ca71e8d90a87c71d3699761a812039d22e3370e87498d87754660fe", "url": "https://huggingface.co/unsloth/Qwen-Image-2.1-GGUF/resolve/2c31ccd392b367a6637841a143813320a02dff55/qwen-image-2.1-Q4_K_M.gguf"},
+    {"key": "encoder", "name": "Qwen3VL-8B-Instruct-Q4_K_M.gguf", "size": 5027784800, "sha256": "67d1659bfe71b89d50b45a4ad1a9e5b997e5bb16ce5da66a6a6167abd569e9e2", "url": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/f982a07559d4a2f6c8744d840bf6fccab30eea96/Qwen3VL-8B-Instruct-Q4_K_M.gguf"},
+    {"key": "vision", "name": "mmproj-Qwen3VL-8B-Instruct-F16.gguf", "size": 1159029824, "sha256": "ca524100ebf825c9a870db1c580d03879e0da0ab2541697e2458e64891cf9d38", "url": "https://huggingface.co/Qwen/Qwen3-VL-8B-Instruct-GGUF/resolve/f982a07559d4a2f6c8744d840bf6fccab30eea96/mmproj-Qwen3VL-8B-Instruct-F16.gguf"},
+    {"key": "vae", "name": "qwen_image_2.1_vae_bf16.safetensors", "size": 675509688, "sha256": "bb21f7473051e1ac368515dd3f2e15cd44d7a11748ee8823e1ddca3e4876b7c9", "url": "https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/cb504a4090723e43f17ad01cec0359490e2de613/vae/qwen_image_2.1_vae_bf16.safetensors"}
+  ],
+  "runtime": [
+    {"name": "sd-master-3f8527a-bin-win-cuda12-x64.zip", "size": 337915440, "sha256": "217d6dead9abd3f827fc338268555cc179234e7e6330ef21ecb1c985e19d2dc7", "url": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-929-3f8527a/sd-master-3f8527a-bin-win-cuda12-x64.zip"},
+    {"name": "cudart-sd-bin-win-cu12-x64.zip", "size": 563452046, "sha256": "fe20366827d357c00797eebb58244dddab7fd9a348d70090c3871004c320f38d", "url": "https://github.com/leejet/stable-diffusion.cpp/releases/download/master-929-3f8527a/cudart-sd-bin-win-cu12-x64.zip"}
+  ]
+}
