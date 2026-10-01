@@ -2,6 +2,12 @@
 import math
 from PIL import Image
 
+def drag_rotation(initial_angle,initial_bearing,current_bearing,snap=False):
+    delta=(current_bearing-initial_bearing+180)%360-180
+    angle=initial_angle+delta
+    if snap: angle=math.floor(angle/15+.5)*15
+    return round((angle+180)%360-180,1)
+
 def rotated_size(size,clockwise_degrees):
     width,height=size
     angle=float(clockwise_degrees)%360

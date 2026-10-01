@@ -18,39 +18,11 @@ from PySide6.QtWidgets import (
 from .core import JobOptions, Store, Settings, STATUS_LABELS, ACTIVE, normalized_image, export_png
 from .engine import QueueRunner, readiness
 from .hardware import hardware_summary
-from .image_ops import rotate_input, rotated_size
+from .image_ops import rotate_input, rotated_size, drag_rotation
 from . import __version__
 
-STYLE = """
-QWidget {font-family:'Segoe UI';font-size:13px;color:#1D2235;}
-QMainWindow {background:#F3F4F8;}
-QFrame#card {background:white;border:1px solid #E2E5EF;border-radius:12px;}
-QFrame#sidebar {background:white;border-right:1px solid #E2E5EF;}
-QFrame#sidebar QPushButton {background:transparent;border:0;padding:12px;}
-QFrame#sidebar QPushButton:hover {background:#EDE8FF;}
-QPushButton {background:#F6F7FB;border:1px solid #E2E5EF;border-radius:7px;padding:6px 12px;min-height:22px;}
-QPushButton:hover {background:#EDE8FF;border-color:#C5B8FF;}
-QPushButton:focus {border:1px solid #6D4AFF;}
-QPushButton:disabled {color:#959BAB;background:#F6F7FB;}
-QPushButton#primary {background:#6D4AFF;color:white;border:1px solid #6D4AFF;font-weight:600;}
-QPushButton#primary:hover {background:#5937E6;}
-QLabel#title {font-size:23px;font-weight:700;}
-QLabel#muted {color:#626B80;}
-QLabel#section {font-size:12px;font-weight:700;color:#626B80;}
-QLabel#badge {background:#EDE8FF;color:#5937E6;border-radius:10px;padding:7px 12px;font-weight:600;}
-QLineEdit,QSpinBox,QDoubleSpinBox,QComboBox {background:white;border:1px solid #D9DEEA;border-radius:6px;padding:6px;min-height:22px;}
-QPlainTextEdit {background:white;border:1px solid #D9DEEA;border-radius:6px;padding:6px;}
-QLineEdit:focus,QPlainTextEdit:focus,QComboBox:focus,QSpinBox:focus,QDoubleSpinBox:focus {border:1px solid #6D4AFF;}
-QComboBox::drop-down {width:22px;border:0;}
-QTableView {background:white;alternate-background-color:#F8F9FC;border:0;gridline-color:#EEF0F6;selection-background-color:#EDE8FF;selection-color:#392385;}
-QHeaderView::section {background:#F8F9FC;border:0;border-bottom:1px solid #E2E5EF;padding:9px;font-weight:600;color:#626B80;}
-QProgressBar {border:0;background:#EDEEF5;border-radius:4px;text-align:center;min-height:8px;max-height:8px;}
-QProgressBar::chunk {background:#6D4AFF;border-radius:4px;}
-QSplitter::handle {background:transparent;}
-QMenu {background:white;border:1px solid #E2E5EF;padding:5px;}
-QMenu::item {padding:8px 18px;} QMenu::item:selected {background:#EDE8FF;}
-QToolTip {background:#1D2235;color:white;padding:7px;border:0;}
-"""
+from .theme import STYLE, FOREST, MUTED
+
 
 def button(text, callback, primary=False):
     item=QPushButton(text)
@@ -86,11 +58,12 @@ class ImageCanvas(QWidget):
         self.points=[]; self.mode="view"; self.zoom=1.; self.pan=QPointF(); self.bg="checker"
         self.dragging=False; self.panning=False; self.last=QPointF()
         self.angle=0.; self.base_original=(1,1); self.base_thumb=None
+        self.rotating=None; self.setMouseTracking(True)
         self.setMinimumSize(160,140); self.setAcceptDrops(editable)
-        self.setToolTip("Cuộn: zoom · Giữ Alt hoặc chuột giữa: pan · Rectangle/Lasso: chọn artwork")
+        self.setToolTip("Kéo điểm neo ở góc để xoay · Shift: nấc 15° · Cuộn: zoom · Alt/chuột giữa: pan · Rectangle/Lasso: chọn artwork")
     def load(self,path):
         self.path=Path(path) if path else None; self.points=[]; self.zoom=1; self.pan=QPointF()
-        self.image=QImage(); self.angle=0.; self.base_thumb=None
+        self.image=QImage(); self.angle=0.; self.base_thumb=None; self.rotating=None
         if self.path and self.path.is_file():
             with Image.open(self.path) as im:
                 self.original=im.size; self.base_original=im.size
@@ -99,14 +72,35 @@ class ImageCanvas(QWidget):
                 self.set_angle(0)
         self.angle_changed.emit(0.)
         self.update()
-    def set_angle(self,value):
+    def set_angle(self,value,preserve_view=False):
         if self.base_thumb is None: return
+        previous=self.image_rect()
+        scale=previous.width()/self.original[0] if not previous.isEmpty() else 1
         self.angle=float(value)
         self.original=rotated_size(self.base_original,self.angle)
-        thumb=rotate_input(self.base_thumb,self.angle); raw=thumb.tobytes()
-        self.image=QImage(raw,thumb.width,thumb.height,thumb.width*4,QImage.Format.Format_RGBA8888).copy()
-        self.points=[]; self.zoom=1; self.pan=QPointF()
+        if self.image.isNull():
+            thumb=self.base_thumb; raw=thumb.tobytes()
+            self.image=QImage(raw,thumb.width,thumb.height,thumb.width*4,QImage.Format.Format_RGBA8888).copy()
+        self.points=[]
+        if preserve_view:
+            fit=min((self.width()-24)/self.original[0],(self.height()-24)/self.original[1])
+            target_scale=self.rotating["scale"] if self.rotating else scale
+            if self.rotating and self.rotating["fit_inside"]: target_scale=min(target_scale,fit)
+            self.zoom=target_scale/max(fit,.000001)
+        else: self.zoom=1; self.pan=QPointF()
         self.angle_changed.emit(self.angle); self.update()
+    def corner_points(self):
+        rect=self.image_rect()
+        if rect.isEmpty(): return []
+        scale=rect.width()/self.original[0]; center=rect.center(); width,height=self.base_original
+        radians=math.radians(self.angle); c,s=math.cos(radians),math.sin(radians)
+        return [QPointF(center.x()+(x*c-y*s)*scale,center.y()+(x*s+y*c)*scale)
+                for x,y in [(-width/2,-height/2),(width/2,-height/2),(width/2,height/2),(-width/2,height/2)]]
+    def rotation_handle(self,point):
+        if not self.editable: return None
+        for index,corner in enumerate(self.corner_points()):
+            if math.hypot(point.x()-corner.x(),point.y()-corner.y())<=14: return index
+        return None
     def image_rect(self):
         if self.image.isNull(): return QRectF()
         fit=min((self.width()-24)/self.original[0],(self.height()-24)/self.original[1])*self.zoom
@@ -121,18 +115,20 @@ class ImageCanvas(QWidget):
         return QPointF(rect.x()+point.x()/self.original[0]*rect.width(),rect.y()+point.y()/self.original[1]*rect.height())
     def paintEvent(self,event):
         painter=QPainter(self); painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.fillRect(self.rect(),QColor("#F4F5F9" if self.bg!="dark" else "#222635"))
+        painter.fillRect(self.rect(),QColor("#F7FCF9" if self.bg!="dark" else "#222635"))
         if self.bg=="checker":
             for y in range(0,self.height(),16):
                 for x in range(0,self.width(),16):
-                    if (x//16+y//16)%2: painter.fillRect(x,y,16,16,QColor("#E5E7EE"))
+                    if (x//16+y//16)%2: painter.fillRect(x,y,16,16,QColor("#E3EEE6"))
         if self.image.isNull():
-            painter.setPen(QColor("#626B80" if self.bg!="dark" else "#B1B8CC"))
+            painter.setPen(QColor(MUTED if self.bg!="dark" else "#D5E6DA"))
             painter.drawText(self.rect(),Qt.AlignmentFlag.AlignCenter,
                 "Kéo ảnh vào đây\nhoặc Chọn ảnh / Ctrl+V" if self.editable else "Kết quả RGBA\nhiển thị sau khi xử lý")
             return
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
-        painter.drawImage(self.image_rect(),self.image)
+        rect=self.image_rect(); scale=rect.width()/self.original[0]; width,height=self.base_original
+        painter.save(); painter.translate(rect.center()); painter.rotate(self.angle)
+        painter.drawImage(QRectF(-width*scale/2,-height*scale/2,width*scale,height*scale),self.image); painter.restore()
         if len(self.points)>=2:
             points=[self.screen_point(p) for p in self.points]
             path=QPainterPath()
@@ -141,22 +137,44 @@ class ImageCanvas(QWidget):
             else: path.addPolygon(QPolygonF(points)); path.closeSubpath()
             shade=QPainterPath(); shade.addRect(self.image_rect())
             painter.fillPath(shade.subtracted(path),QColor(13,38,23,90))
-            painter.setPen(QPen(QColor("#8E76FF"),2)); painter.drawPath(path)
+            painter.setPen(QPen(QColor(FOREST),2)); painter.drawPath(path)
         if self.editable and self.angle:
             painter.setPen(QPen(QColor(255,255,255,65),1))
             for fraction in (1/3,2/3):
                 painter.drawLine(QPointF(self.width()*fraction,0),QPointF(self.width()*fraction,self.height()))
                 painter.drawLine(QPointF(0,self.height()*fraction),QPointF(self.width(),self.height()*fraction))
+        if self.editable:
+            corners=self.corner_points()
+            painter.setPen(QPen(QColor("#65A878"),1,Qt.PenStyle.DashLine)); painter.setBrush(Qt.BrushStyle.NoBrush)
+            painter.drawPolygon(QPolygonF(corners))
+            painter.setPen(QPen(QColor(FOREST),2)); painter.setBrush(QColor("#FFFFFF"))
+            for index,corner in enumerate(corners):
+                painter.setBrush(QColor("#D1ECD9" if self.rotating and self.rotating["handle"]==index else "#FFFFFF"))
+                painter.drawEllipse(corner,6,6)
     def mousePressEvent(self,event):
         if self.image.isNull(): return
         self.last=event.position()
         self.panning=event.button()==Qt.MouseButton.MiddleButton or bool(event.modifiers()&Qt.KeyboardModifier.AltModifier)
         if self.panning: return
+        handle=self.rotation_handle(event.position())
+        if handle is not None and event.button()==Qt.MouseButton.LeftButton:
+            rect=self.image_rect(); center=rect.center()
+            self.rotating={"handle":handle,"center":center,"angle":self.angle,"scale":rect.width()/self.original[0],
+                           "fit_inside":self.zoom<=1.000001 and abs(self.pan.x())<.01 and abs(self.pan.y())<.01,
+                           "bearing":math.degrees(math.atan2(event.position().y()-center.y(),event.position().x()-center.x()))}
+            self.points=[]; self.dragging=False; self.setCursor(Qt.CursorShape.ClosedHandCursor); self.update(); return
         if self.editable and self.mode!="view" and event.button()==Qt.MouseButton.LeftButton:
             self.dragging=True; point=self.source_point(event.position())
             self.points=[point,point] if self.mode=="rectangle" else [point]
             self.update()
     def mouseMoveEvent(self,event):
+        if self.rotating:
+            center=self.rotating["center"]; dx=event.position().x()-center.x(); dy=event.position().y()-center.y()
+            if math.hypot(dx,dy)>12:
+                bearing=math.degrees(math.atan2(dy,dx))
+                self.set_angle(drag_rotation(self.rotating["angle"],self.rotating["bearing"],bearing,
+                    bool(event.modifiers()&Qt.KeyboardModifier.ShiftModifier)),preserve_view=True)
+            return
         if self.panning:
             self.pan+=event.position()-self.last; self.last=event.position(); self.update()
         elif self.dragging:
@@ -164,9 +182,12 @@ class ImageCanvas(QWidget):
             if self.mode=="rectangle": self.points[1]=point
             elif len(self.points)<10000: self.points.append(point)
             self.update()
+        else:
+            self.setCursor(Qt.CursorShape.OpenHandCursor if self.rotation_handle(event.position()) is not None else Qt.CursorShape.ArrowCursor)
     def mouseReleaseEvent(self,event):
-        self.dragging=False; self.panning=False; self.update()
+        self.dragging=False; self.panning=False; self.rotating=None; self.unsetCursor(); self.update()
     def wheelEvent(self,event):
+        if self.rotating: event.accept(); return
         self.zoom=max(.5,min(8,self.zoom*(1.15 if event.angleDelta().y()>0 else 1/1.15))); self.update()
     def dragEnterEvent(self,event):
         if event.mimeData().hasUrls(): event.acceptProposedAction()

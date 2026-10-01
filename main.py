@@ -6,7 +6,8 @@ from PySide6.QtCore import QLockFile, QTimer
 from PySide6.QtGui import QFontDatabase, QFont, QIcon
 from PySide6.QtWidgets import QApplication, QMessageBox
 from artwork_local.core import Settings, app_root
-from artwork_local.ui import MainWindow, STYLE
+from artwork_local.ui import MainWindow
+from artwork_local.theme import apply_theme
 
 def main():
     parser=argparse.ArgumentParser()
@@ -18,7 +19,7 @@ def main():
         font=Path("C:/Windows/Fonts")/name
         if font.is_file(): QFontDatabase.addApplicationFont(str(font))
     app.setFont(QFont("Segoe UI",10))
-    app.setStyle("Fusion"); app.setStyleSheet(STYLE)
+    apply_theme(app)
     try:
         root=app_root(); settings=Settings(root,Path(args.data_dir) if args.data_dir else None)
         app.setWindowIcon(QIcon(str(root/"assets"/"app.ico")))

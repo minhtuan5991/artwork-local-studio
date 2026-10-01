@@ -18,3 +18,14 @@ export function selectionBounds(points,width,height){
   const x=Math.max(0,Math.floor(Math.min(...xs))),y=Math.max(0,Math.floor(Math.min(...ys)));
   return {x,y,w:Math.min(width,Math.ceil(Math.max(...xs)))-x,h:Math.min(height,Math.ceil(Math.max(...ys)))-y};
 }
+export function rotatedCorners(width,height,degrees,rect){
+  const a=degrees*Math.PI/180,c=Math.cos(a),s=Math.sin(a),cx=rect.x+rect.width/2,cy=rect.y+rect.height/2;
+  return [[-width/2,-height/2],[width/2,-height/2],[width/2,height/2],[-width/2,height/2]].map(([x,y])=>({
+    x:cx+(x*c-y*s)*rect.scale,y:cy+(x*s+y*c)*rect.scale
+  }));
+}
+export function dragRotation(initialAngle,initialBearing,currentBearing,snap=false){
+  const delta=((currentBearing-initialBearing+540)%360)-180;
+  let angle=initialAngle+delta;if(snap)angle=Math.round(angle/15)*15;
+  return Math.round((((angle+540)%360)-180)*10)/10;
+}

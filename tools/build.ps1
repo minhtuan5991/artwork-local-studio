@@ -28,6 +28,8 @@ foreach ($name in @("model-manifest.json","browser-extension","README-VI.md","do
 if ($LASTEXITCODE -ne 0) { throw "Release setup failed" }
 & $pythonPath tools/package_release.py
 if ($LASTEXITCODE -ne 0) { throw "Portable ZIP failed" }
+& $pythonPath tools/package_extension.py
+if ($LASTEXITCODE -ne 0) { throw "Extension ZIP failed" }
 if ($Installer) {
     $compiler = Join-Path $projectRoot ".tools\inno\ISCC.exe"
     if (-not (Test-Path -LiteralPath $compiler)) {

@@ -8,9 +8,11 @@ from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import QApplication
 from artwork_local.core import Settings,JobOptions
 from artwork_local.ui import MainWindow,STYLE
-folder=root/"test-output"/"ui-v0.2.0"; folder.mkdir(parents=True,exist_ok=True)
+from artwork_local.theme import apply_theme
+from artwork_local import __version__
+folder=root/"test-output"/("ui-v"+__version__); folder.mkdir(parents=True,exist_ok=True)
 app=QApplication([]); app.setStyle("Fusion")
-QFontDatabase.addApplicationFont("C:/Windows/Fonts/segoeui.ttf"); app.setStyleSheet(STYLE)
+QFontDatabase.addApplicationFont("C:/Windows/Fonts/segoeui.ttf"); apply_theme(app)
 settings=Settings(root,folder/"data"); settings.values["check_updates"]=False
 settings.values["output_dir"]=str(folder/"export")
 window=MainWindow(settings,json.loads((root/"model-manifest.json").read_text()))

@@ -6,7 +6,11 @@
 
 **[Tải bộ cài Windows](https://github.com/minhtuan5991/artwork-local-studio/releases/latest)** · [Hướng dẫn tiếng Việt](README-VI.md) · [Kết quả kiểm chứng](docs/VALIDATION-VI.md)
 
-## Bản 0.2.0
+## Phiên bản 0.2.1
+
+- Forest green cho app, extension và logo.
+- Các bảng cài đặt, menu và danh sách chọn dùng nền trắng sáng, chữ đậm, kể cả khi Windows đang bật giao diện tối.
+- Bốn điểm neo ở góc ảnh: kéo để xoay quanh tâm; giữ Shift để xoay theo nấc 15°.
 
 - Giao diện mới: Queue bên phải, thiết lập đầu ra bên dưới vùng ảnh.
 - Logo thống nhất cho app, bộ cài và extension.
@@ -17,7 +21,7 @@
 
 ## Cài đặt
 
-Windows x64 10 phiên bản 1809 trở lên / Windows 11. Tải `ArtworkLocalStudio-Setup-0.2.0.exe` từ Releases, chạy wizard, rồi mở app.
+Windows x64 10 phiên bản 1809 trở lên / Windows 11. Tải **ArtworkLocalStudio-Setup-0.2.1.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.1). ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
 
 Bộ cài **không chứa trọng số model**. Bấm **Thiết lập Qwen** để tải khoảng 12 GB model/runtime có checksum, hoặc chọn bộ model và runtime đang có trong Cài đặt. Máy dùng GPU NVIDIA cần driver hỗ trợ CUDA 12. CPU được hỗ trợ nhưng chậm.
 

@@ -40,7 +40,7 @@ icons={
 }
 folder=assets/"icons"; folder.mkdir(exist_ok=True)
 for name,body in icons.items():
-    (folder/(name+".svg")).write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#667087" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+body+'</svg>',encoding="utf-8")
+    (folder/(name+".svg")).write_text('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#3F594A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+body+'</svg>',encoding="utf-8")
 extension=root/"browser-extension"/"icons"; extension.mkdir(exist_ok=True)
 import shutil
 for size in [16,32,48,128]:

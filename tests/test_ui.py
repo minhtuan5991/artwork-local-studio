@@ -3,15 +3,17 @@ os.environ["QT_QPA_PLATFORM"]="offscreen"
 import json,tempfile,unittest
 from pathlib import Path
 from PIL import Image
-from PySide6.QtCore import QPointF
+from PySide6.QtCore import QPointF,Qt
 from PySide6.QtGui import QFontDatabase
 from PySide6.QtWidgets import QApplication
+from PySide6.QtTest import QTest
 from artwork_local.core import Settings,JobOptions
-from artwork_local.ui import MainWindow,STYLE
+from artwork_local.ui import MainWindow,STYLE,SettingsDialog
+from artwork_local.theme import apply_theme
 ROOT=Path(__file__).resolve().parents[1]
 APP=QApplication.instance() or QApplication([])
 QFontDatabase.addApplicationFont("C:/Windows/Fonts/segoeui.ttf")
-APP.setStyleSheet(STYLE)
+apply_theme(APP)
 class UiTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory(); self.settings=Settings(ROOT,Path(self.temp.name)/"data")
@@ -55,4 +57,31 @@ class UiTests(unittest.TestCase):
         self.window.source.load(ROOT/"test-output"/"benchmark"/"mockup.png"); self.window.source_name="mockup.png"
         self.window.mode.setCurrentIndex(1); self.window.source.points=[QPointF(350,250),QPointF(680,620)]; self.window.source.update(); APP.processEvents()
         folder=ROOT/"test-output"; folder.mkdir(exist_ok=True); self.assertTrue(self.window.grab().save(str(folder/"ui-workspace.png")))
+    def test_corner_drag_changes_actual_input_pixels(self):
+        image=Image.new("RGBA",(400,400),"red")
+        image.paste((0,255,0,255),(200,0,400,400)); image.save(self.source)
+        canvas=self.window.source; canvas.load(self.source); APP.processEvents()
+        rect=canvas.image_rect()
+        QTest.mousePress(canvas,Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier,rect.topRight().toPoint())
+        self.assertIsNotNone(canvas.rotating)
+        QTest.mouseMove(canvas,rect.bottomRight().toPoint(),10)
+        QTest.mouseRelease(canvas,Qt.MouseButton.LeftButton,Qt.KeyboardModifier.NoModifier,rect.bottomRight().toPoint())
+        self.assertAlmostEqual(canvas.angle,90,delta=.5)
+        self.assertIsNone(canvas.rotating)
+        target=Path(self.temp.name)/"anchor-rotated.png"; canvas.crop_to(target)
+        with Image.open(target) as rotated:
+            self.assertEqual(rotated.getpixel((200,70)),(255,0,0,255))
+            self.assertEqual(rotated.getpixel((200,330)),(0,255,0,255))
+    def test_settings_background_stays_light_under_dark_system_palette(self):
+        from PySide6.QtGui import QPalette,QColor
+        dark=QPalette(); dark.setColor(QPalette.ColorRole.Window,QColor("#202020")); dark.setColor(QPalette.ColorRole.Base,QColor("#494949"))
+        APP.styleHints().setColorScheme(Qt.ColorScheme.Dark); APP.setPalette(dark)
+        apply_theme(APP)
+        dialog=SettingsDialog(self.window); dialog.tabs.setCurrentIndex(1); dialog.show(); APP.processEvents()
+        page=dialog.tabs.widget(1); pixel=page.grab().toImage().pixelColor(20,page.height()-20)
+        self.assertGreater(min(pixel.red(),pixel.green(),pixel.blue()),230)
+        # The offscreen platform has no OS color-scheme preference; rendered pixels
+        # and the explicit palette are the relevant light-theme guarantees.
+        self.assertEqual(APP.palette().color(QPalette.ColorRole.Base).name(),"#ffffff")
+        dialog.reject()
 if __name__=="__main__": unittest.main()

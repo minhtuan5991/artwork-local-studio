@@ -4,7 +4,8 @@ let playwright;
 try{playwright=require("playwright");}catch{
   playwright=require(process.env.PLAYWRIGHT_MODULE||path.join(process.env.USERPROFILE,".cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright"));
 }
-const root=path.resolve(__dirname,".."),output=path.join(root,"test-output","extension-v0.2.0");fs.mkdirSync(output,{recursive:true});
+const root=path.resolve(__dirname,".."),version=JSON.parse(fs.readFileSync(path.join(root,"browser-extension","manifest.json"),"utf8")).version;
+const output=path.join(root,"test-output","extension-v"+version);fs.mkdirSync(output,{recursive:true});
 const server=http.createServer((req,res)=>{
   const url=new URL(req.url,"http://localhost"),target=path.resolve(root,"."+decodeURIComponent(url.pathname));
   if(!target.startsWith(root+path.sep)){res.writeHead(403).end();return;}
@@ -39,6 +40,19 @@ const server=http.createServer((req,res)=>{
     const canvas=await page.locator("#canvas").evaluate(el=>({width:el.width,height:el.height,rect:el.getBoundingClientRect().toJSON()}));
     assert.ok(Math.abs(canvas.width/canvas.height-canvas.rect.width/canvas.rect.height)<.005);
     await page.screenshot({path:path.join(output,"1280x800.png")});
+    await page.locator("#zoomOut").click();
+    const anchor=await page.evaluate(async()=>{
+      const {fitRect,rotatedCorners}=await import("/browser-extension/geometry.js");
+      const box=document.getElementById("canvas").getBoundingClientRect(),r=fitRect(400,200,box.width,box.height,1/1.2);
+      const p=rotatedCorners(400,200,0,r)[1],center={x:r.x+r.width/2,y:r.y+r.height/2};
+      const x=p.x-center.x,y=p.y-center.y,a=28*Math.PI/180;
+      return {start:{x:box.left+p.x,y:box.top+p.y},end:{x:box.left+center.x+x*Math.cos(a)-y*Math.sin(a),y:box.top+center.y+x*Math.sin(a)+y*Math.cos(a)}};
+    });
+    await page.mouse.move(anchor.start.x,anchor.start.y);await page.mouse.down();await page.keyboard.down("Shift");
+    await page.mouse.move(anchor.end.x,anchor.end.y,{steps:8});await page.mouse.up();await page.keyboard.up("Shift");
+    assert.equal(Number(await page.locator("#angle").inputValue()),30);
+    await page.screenshot({path:path.join(output,"corner-rotation.png")});
+    await page.locator("#resetAngle").click();
     await page.locator("#rotateRight").click();await page.locator("#send").click();
     await page.waitForFunction(()=>window.bridgeMessages.length===1);
     const pixels=await page.evaluate(async()=>{
@@ -48,7 +62,9 @@ const server=http.createServer((req,res)=>{
     });
     assert.deepEqual(pixels,{width:200,height:400,angle:90,top:[255,0,0,255],bottom:[0,255,0,255]});
     await page.setViewportSize({width:1920,height:1080});await page.screenshot({path:path.join(output,"1920x1080.png")});
-    assert.deepEqual(errors,[]);console.log(JSON.stringify({double_click_load:true,toolbar_fixed:true,aspect_ratio:true,rotated_pixels:true,browser_errors:errors}));
+    const theme=await page.locator("#send").evaluate(el=>({background:getComputedStyle(el).backgroundColor,scheme:getComputedStyle(document.documentElement).colorScheme}));
+    assert.equal(theme.background,"rgb(31, 107, 58)");assert.equal(theme.scheme,"light");
+    assert.deepEqual(errors,[]);console.log(JSON.stringify({double_click_load:true,toolbar_fixed:true,aspect_ratio:true,corner_drag_and_shift_snap:true,rotated_pixels:true,forest_light_theme:true,browser_errors:errors}));
     await context.close();
   }finally{await browser.close();}
 })().catch(error=>{console.error(error);process.exitCode=1;}).finally(()=>server.close());

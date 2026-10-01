@@ -1,36 +1,44 @@
-import {rotatedSize,fitRect,sourcePoint,selectionBounds} from "./geometry.js";
+import {rotatedSize,fitRect,sourcePoint,selectionBounds,rotatedCorners,dragRotation} from "./geometry.js";
 const $=id=>document.getElementById(id),canvas=$("canvas"),ctx=canvas.getContext("2d");
 let image=null,sourceUrl="",pageUrl="",angle=0,zoom=1,pan={x:0,y:0},points=[],drag=false,panning=false,last={x:0,y:0};
 let view={width:1,height:1,dpr:1},loadSequence=0,controller=null,sending=false;
+let rotating=null;
 function status(message,error=false){$("status").textContent=message;$("status").classList.toggle("error",error);}
 function dimensions(){return image?rotatedSize(image.width,image.height,angle):{width:1,height:1};}
 function displayRect(){const d=dimensions();return fitRect(d.width,d.height,view.width,view.height,zoom,pan);}
 function position(event){const rect=canvas.getBoundingClientRect();return {x:event.clientX-rect.left,y:event.clientY-rect.top};}
 function original(point){const d=dimensions();return sourcePoint(point,displayRect(),d.width,d.height);}
+function corners(){return image?rotatedCorners(image.width,image.height,angle,displayRect()):[];}
+function rotationHandle(point){return corners().findIndex(c=>Math.hypot(point.x-c.x,point.y-c.y)<=14);}
 function resizeCanvas(){
   const bounds=$("viewport").getBoundingClientRect();view={width:Math.max(1,bounds.width),height:Math.max(1,bounds.height),dpr:window.devicePixelRatio||1};
   canvas.width=Math.round(view.width*view.dpr);canvas.height=Math.round(view.height*view.dpr);draw();
 }
 function draw(){
   ctx.setTransform(view.dpr,0,0,view.dpr,0,0);ctx.clearRect(0,0,view.width,view.height);
-  ctx.fillStyle="#f4f5f9";ctx.fillRect(0,0,view.width,view.height);ctx.fillStyle="#e5e7ee";
+  ctx.fillStyle="#f7fcf9";ctx.fillRect(0,0,view.width,view.height);ctx.fillStyle="#e3eee6";
   for(let y=0;y<view.height;y+=16)for(let x=0;x<view.width;x+=16)if((x/16+y/16)%2)ctx.fillRect(x,y,16,16);
   if(!image)return;
   const r=displayRect(),d=dimensions();
   ctx.save();ctx.translate(r.x+d.width*r.scale/2,r.y+d.height*r.scale/2);ctx.scale(r.scale,r.scale);
   ctx.rotate(angle*Math.PI/180);ctx.drawImage(image,-image.width/2,-image.height/2);ctx.restore();
   if(angle){ctx.beginPath();for(const f of [1/3,2/3]){ctx.moveTo(view.width*f,0);ctx.lineTo(view.width*f,view.height);ctx.moveTo(0,view.height*f);ctx.lineTo(view.width,view.height*f);}ctx.strokeStyle="rgba(255,255,255,.35)";ctx.lineWidth=1;ctx.stroke();}
+  const anchors=corners();ctx.save();ctx.beginPath();
+  anchors.forEach((p,i)=>ctx[i?"lineTo":"moveTo"](p.x,p.y));ctx.closePath();ctx.setLineDash([5,4]);ctx.strokeStyle="#65a878";ctx.lineWidth=1;ctx.stroke();ctx.setLineDash([]);
+  anchors.forEach((p,i)=>{ctx.beginPath();ctx.arc(p.x,p.y,6,0,Math.PI*2);ctx.fillStyle=rotating?.handle===i?"#d1ecd9":"#fff";ctx.fill();ctx.strokeStyle="#1f6b3a";ctx.lineWidth=2;ctx.stroke();});ctx.restore();
   if(points.length<2)return;
   ctx.beginPath();
   if($("mode").value==="rectangle"){const [a,b]=points;ctx.rect(r.x+a.x*r.scale,r.y+a.y*r.scale,(b.x-a.x)*r.scale,(b.y-a.y)*r.scale);}
   else{points.forEach((p,i)=>ctx[i?"lineTo":"moveTo"](r.x+p.x*r.scale,r.y+p.y*r.scale));ctx.closePath();}
-  ctx.fillStyle="rgba(109,74,255,.12)";ctx.fill();ctx.strokeStyle="#8e76ff";ctx.lineWidth=2;ctx.stroke();
+  ctx.fillStyle="rgba(31,107,58,.12)";ctx.fill();ctx.strokeStyle="#1f6b3a";ctx.lineWidth=2;ctx.stroke();
 }
-function setAngle(value){
+function setAngle(value,{preserveView=false,scale=null,fitInside=false}={}){
   if(sending)return;
   if(!Number.isFinite(value)||value<-180||value>180){status("Góc xoay phải từ −180° đến 180°.",true);return;}
-  angle=value;$("angle").value=angle;points=[];zoom=1;pan={x:0,y:0};draw();
-  if(image)status("Nguồn đã xoay "+angle+"° · Khoanh lại vùng artwork trên ảnh đã xoay.");
+  const previous=displayRect();angle=value;$("angle").value=angle;points=[];
+  if(preserveView){const d=dimensions(),fit=fitRect(d.width,d.height,view.width,view.height).scale,target=scale??previous.scale;zoom=(fitInside?Math.min(target,fit):target)/Math.max(fit,.000001);}
+  else{zoom=1;pan={x:0,y:0};}draw();
+  if(image&&!preserveView)status("Nguồn đã xoay "+angle+"° · Khoanh lại vùng artwork trên ảnh đã xoay.");
 }
 $("angle").addEventListener("change",()=>setAngle(Number($("angle").value)));
 $("rotateLeft").onclick=()=>setAngle((angle-90+540)%360-180);
@@ -38,16 +46,31 @@ $("rotateRight").onclick=()=>setAngle((angle+90+540)%360-180);
 $("resetAngle").onclick=()=>setAngle(0);
 canvas.addEventListener("pointerdown",e=>{
   if(!image||sending)return;last=position(e);panning=e.altKey||e.button===1;
+  const handle=rotationHandle(last);
+  if(!panning&&e.button===0&&handle>=0){
+    const r=displayRect(),center={x:r.x+r.width/2,y:r.y+r.height/2};
+    rotating={handle,center,angle,scale:r.scale,fitInside:zoom<=1.000001&&Math.abs(pan.x)<.01&&Math.abs(pan.y)<.01,bearing:Math.atan2(last.y-center.y,last.x-center.x)*180/Math.PI};
+    drag=false;points=[];canvas.style.cursor="grabbing";canvas.setPointerCapture(e.pointerId);e.preventDefault();draw();return;
+  }
   if(!panning&&e.button===0&&$("mode").value!=="view"){drag=true;const p=original(last);points=$("mode").value==="rectangle"?[p,p]:[p];}
   canvas.setPointerCapture(e.pointerId);draw();
 });
 canvas.addEventListener("pointermove",e=>{
   if(!image||sending)return;const p=position(e);
+  if(rotating){
+    const dx=p.x-rotating.center.x,dy=p.y-rotating.center.y;
+    if(Math.hypot(dx,dy)>12)setAngle(dragRotation(rotating.angle,rotating.bearing,Math.atan2(dy,dx)*180/Math.PI,e.shiftKey),{preserveView:true,scale:rotating.scale,fitInside:rotating.fitInside});
+    return;
+  }
   if(panning){pan.x+=p.x-last.x;pan.y+=p.y-last.y;last=p;}
-  else if(drag){if($("mode").value==="rectangle")points[1]=original(p);else if(points.length<10000)points.push(original(p));}draw();
+  else if(drag){if($("mode").value==="rectangle")points[1]=original(p);else if(points.length<10000)points.push(original(p));}
+  else canvas.style.cursor=rotationHandle(p)>=0?"grab":"default";draw();
 });
-for(const event of ["pointerup","pointercancel"])canvas.addEventListener(event,()=>{drag=false;panning=false;});
-canvas.addEventListener("wheel",e=>{e.preventDefault();zoom=Math.max(.5,Math.min(8,zoom*(e.deltaY<0?1.15:1/1.15)));draw();},{passive:false});
+for(const event of ["pointerup","pointercancel","lostpointercapture"])canvas.addEventListener(event,()=>{
+  if(rotating&&image)status("Nguồn đã xoay "+angle+"° · Khoanh lại vùng artwork trên ảnh đã xoay.");
+  drag=false;panning=false;rotating=null;canvas.style.cursor="default";draw();
+});
+canvas.addEventListener("wheel",e=>{e.preventDefault();if(rotating)return;zoom=Math.max(.5,Math.min(8,zoom*(e.deltaY<0?1.15:1/1.15)));draw();},{passive:false});
 $("mode").addEventListener("change",()=>{points=[];draw();});
 $("clear").onclick=()=>{points=[];draw();};
 $("reset").onclick=()=>{zoom=1;pan={x:0,y:0};draw();};
@@ -69,7 +92,7 @@ async function loadImage(url){
     const bitmap=await createImageBitmap(blob);
     if(bitmap.width*bitmap.height>40000000||Math.min(bitmap.width,bitmap.height)<16){bitmap.close();throw Error("Kích thước ảnh không hợp lệ.");}
     if(sequence!==loadSequence){bitmap.close();return;}
-    image?.close();image=bitmap;sourceUrl=url;angle=0;$("angle").value=0;zoom=1;pan={x:0,y:0};points=[];
+    image?.close();image=bitmap;sourceUrl=url;angle=0;$("angle").value=0;zoom=1;pan={x:0,y:0};points=[];rotating=null;
     $("placeholder").hidden=true;draw();status(image.width+" × "+image.height+" · Xoay thẳng, khoanh vùng rồi gửi vào Queue.");
   }catch(error){if(sequence===loadSequence&&error.name!=="AbortError")status(error.message,true);}
   finally{if(sequence===loadSequence){$("load").disabled=false;$("send").disabled=!image||sending;}}

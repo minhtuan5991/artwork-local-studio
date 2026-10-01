@@ -2,12 +2,17 @@ import io,json,os,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
 from PIL import Image
-from artwork_local.image_ops import rotate_input,rotated_size
+from artwork_local.image_ops import rotate_input,rotated_size,drag_rotation
 from artwork_local.updates import check_latest,parse_release
 from artwork_local.core import Settings
 from artwork_local.native_host import accept_payload
 
 class RotationUpdateTests(unittest.TestCase):
+    def test_anchor_drag_wrap_and_shift_snap(self):
+        self.assertEqual(drag_rotation(0,-45,45),90)
+        self.assertEqual(drag_rotation(10,175,-175),20)
+        self.assertEqual(drag_rotation(0,-45,-16,True),30)
+        self.assertEqual(drag_rotation(0,45,14,True),-30)
     def test_dimensions_match_actual_pillow_rotation(self):
         for size in [(400,200),(101,69),(16,17),(3011,2047)]:
             image=Image.new("RGBA",size,"red")

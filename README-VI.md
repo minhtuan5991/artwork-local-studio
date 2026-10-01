@@ -1,10 +1,12 @@
-# Artwork Local Studio 0.2.0
+# Artwork Local Studio 0.2.1
+
+Phiên bản 0.2.1: forest green, các bảng chọn nền sáng và điểm neo kéo xoay ở bốn góc ảnh.
 
 App Windows tiếng Việt dùng Qwen-Image-2.1 local để tách và tái tạo artwork. Không dùng API AI.
 
 ## Cài đặt trên Windows
 
-1. Tải **ArtworkLocalStudio-Setup-0.2.0.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/latest).
+1. Tải **ArtworkLocalStudio-Setup-0.2.1.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.1), rồi chạy bộ cài. ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
 2. Chạy wizard. App cài cho tài khoản Windows hiện tại, không cần quyền quản trị. Có Start Menu, tùy chọn shortcut Desktop và kết nối Chrome/Edge.
 3. Mở app → **Thiết lập Qwen** để tải model/runtime vào ổ đủ dung lượng. Tổng model khoảng 11,6 GB; cần thêm dung lượng cho runtime, cache và kết quả.
 4. Nếu đã có model: **Cài đặt → Model & lưu ảnh**, chọn thư mục models và file runtime/sd-cli.exe đang có. Không cần tải lại.
@@ -17,7 +19,7 @@ Bộ cài không kèm trọng số hoặc CUDA runtime. Model tải theo revisio
 ## Tách và tái tạo artwork
 
 1. **Chọn ảnh**, kéo thả PNG/JPEG/WebP hoặc Ctrl+V. Chọn nhiều file để thêm hàng loạt.
-2. Với một ảnh, xoay ±90° hoặc nhập góc chính xác để dựng thẳng nguồn; sau đó chọn Rectangle/Lasso. Đổi góc xoay sẽ xóa vùng chọn cũ.
+2. Với một ảnh, kéo điểm neo ở bất kỳ góc nào để xoay quanh tâm. Giữ Shift để xoay theo nấc 15°. Có thể dùng ±90° hoặc nhập góc chính xác; sau đó chọn Rectangle/Lasso. Đổi góc xoay sẽ xóa vùng chọn cũ.
 3. Thiết lập 1K/2K, trong suốt/trắng/chroma, giữ thiết kế/khôi phục chi tiết. Có ô nhập chữ xác nhận và yêu cầu sửa thêm.
 4. **Thêm vào Queue → Chạy Queue**. Queue nằm bên phải; thiết lập nằm dưới vùng ảnh.
 5. Chọn một ảnh trong Queue để xem nguồn/kết quả, trạng thái, thời gian và QC. Nút **Thao tác** chứa retry, chạy lại AI, xuất nền, đổi thứ tự và ẩn ảnh.

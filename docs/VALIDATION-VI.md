@@ -66,3 +66,17 @@ Bộ cài Inno Setup đã được thử cài im lặng vào thư mục test ri�
 Prompt revision 4 thêm yêu cầu đầu ra thẳng theo ảnh đã xoay. Không chạy benchmark Qwen mới trong đợt cập nhật này; các con số tốc độ/chất lượng AI phía trên thuộc revision 3. Xoay/crop xác định và các thay đổi giao diện không chứng minh chất lượng clone mới.
 
 Cập nhật phiên bản dùng public GitHub Releases từ minhtuan5991/artwork-local-studio, chạy nền mỗi lần mở app. App không tự cài và không gửi ảnh qua mạng để kiểm tra bản mới.
+
+## Phiên bản 0.2.1 — 01/10/2026
+
+Màu chủ đạo, icon và logo chuyển sang forest green #1F6B3A. Hộp thoại, tab, menu và danh sách chọn dùng nền trắng/sáng, chữ #153623; QApplication có palette sáng rõ ràng và các file picker dùng Qt light dialog để không kế thừa nền xám tối của Windows.
+
+Đã tái hiện palette tối trong kiểm thử rồi xác nhận vùng cài đặt được render sáng và ô nhập dùng Base trắng. Screenshot kiểm tra cả tab model, tab website, dropdown, thông báo và file picker. Tương phản tính theo sRGB: trắng trên forest green 6,52:1, chữ chính trên trắng 13,26:1, chữ phụ trên trắng 7,67:1.
+
+App và extension có bốn điểm neo ở các góc vật lý của ảnh để kéo xoay quanh tâm. Giữ Shift để xoay theo nấc 15°. Ảnh được preview bằng phép biến đổi uniform, không kéo giãn; vùng chọn cũ được xóa khi đổi góc. Ảnh đang fit được giữ trong viewport; ảnh người dùng zoom/pan thủ công giữ cách xem đó. Điểm neo và đường khung không được ghi vào PNG đầu vào.
+
+34 unittest đã qua, gồm kéo góc bằng sự kiện chuột Qt và xác nhận pixel trong PNG sau xoay, xử lý góc qua ±180°/Shift snap, cùng toàn bộ kiểm thử Queue/alpha/native cũ. Edge headless với fixture và Chrome bridge giả lập xác nhận kéo neo + Shift đưa góc về 30°, PNG gửi đi sau xoay 90° có đúng pixel, theme forest/light và không có lỗi JavaScript.
+
+EXE 0.2.1 đã mở giao diện, native host đã bác origin không được phép và đưa ảnh thử vào Queue mà không chạy AI. Bộ cài Inno Setup biên dịch thành công; các ZIP được kiểm tra toàn vẹn và có SHA256SUMS.txt. Không thử cài đè lên app đang dùng trong lượt này.
+
+Không thay model, sampler hoặc prompt so với 0.2.0; không chạy benchmark Qwen mới trong lượt cập nhật giao diện này.
