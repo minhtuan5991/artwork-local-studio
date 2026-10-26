@@ -1,5 +1,6 @@
 """Isolated visual QA; never reads the user's Queue or starts inference."""
 import json,os,sys
+from dataclasses import replace
 os.environ["QT_QPA_PLATFORM"]="offscreen"
 from pathlib import Path
 root=Path(__file__).resolve().parents[1]; sys.path.insert(0,str(root))
@@ -35,3 +36,23 @@ for width,height in [(1280,800),(1920,1080)]:
     assert window.table.geometry().height()>250
     window.grab().save(str(folder/(str(width)+"x"+str(height)+".png")))
 window.close(); print("Desktop screenshots and layout bounds passed at 1280×800 and 1920×1080.")
+statuses=["completed","needs_review","canceled","queued","completed","failed","queued","completed"]
+for i,status in enumerate(statuses):
+    item={**prepared,"name":f"Artwork {i+1:02d}.png"}
+    added=window.store.enqueue(item,replace(JobOptions(),seed=100+i),settings.values["output_dir"])
+    jid=added.get("job_id") or added["job"]["id"]
+    window.store.update(jid,status=status)
+window.refresh(); window.table.selectRow(0); window.show(); app.processEvents()
+from PySide6.QtCore import QItemSelectionModel
+selection=window.table.selectionModel()
+selection.select(window.model.index(1,0),QItemSelectionModel.SelectionFlag.Select|QItemSelectionModel.SelectionFlag.Rows)
+for width,height in [(1280,800),(1920,1080)]:
+    window.resize(width,height); app.processEvents()
+    assert window.table.height()>250
+    for control in [window.select_all_button,window.clear_selection_button,window.remove_button,window.undo_remove_button]:
+        assert control.width()>=control.fontMetrics().horizontalAdvance(control.text())+20,(control.text(),control.width())
+    window.grab().save(str(folder/(str(width)+"x"+str(height)+"-queue-selection.png")))
+assert len(window.selected_ids())==2
+window.hide_selected(); assert window.undo_remove_button.isEnabled()
+window.undo_remove(); assert len(window.selected_ids())==2
+window.close(); print("Queue selection/removal/undo screenshots and control widths passed.")

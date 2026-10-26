@@ -34,6 +34,50 @@ class CoreTests(unittest.TestCase):
         jid=self.enqueue(); self.store.hide([jid]); store=Store(self.store.data)
         result=store.enqueue(store.prepare(self.source),self.options,str(self.root/"other"))
         self.assertEqual(result["duplicate"],"exact"); self.assertEqual(result["job"]["id"],jid)
+    def test_bulk_remove_preserves_active_jobs_and_source(self):
+        pending=self.enqueue(); active=self.enqueue(replace(self.options,seed=43))
+        self.store.update(active,status="generating")
+        result=self.store.hide([pending,active,pending,"missing"])
+        self.assertEqual(result,{"removed":[pending],"active":[active]})
+        self.assertEqual([job["id"] for job in self.store.all()],[active])
+        self.assertTrue(self.source.is_file())
+        self.assertTrue(Path(self.prepared["source_path"]).is_file())
+        self.assertEqual(self.store.hide([pending])["removed"],[])
+    def test_remove_and_restore_preserve_result_and_duplicate_history(self):
+        jid=self.enqueue(); self.run_job(FakeEngine()); job=self.store.get(jid)
+        paths=[Path(job[key]) for key in ["source_path","master_path","output_path"]]
+        checksums=[sha256_file(path) for path in paths]
+        self.store.hide([jid]); self.assertEqual(self.store.all(),[])
+        self.assertEqual(Store(self.store.data).all(),[])
+        self.assertEqual(self.store.restore([jid]),[jid])
+        self.assertEqual(self.store.get(jid)["status"],"completed")
+        self.assertEqual([sha256_file(path) for path in paths],checksums)
+        self.assertEqual(self.store.enqueue(self.prepared,self.options,str(self.root/"output"))["duplicate"],"exact")
+    def test_undo_pending_job_requires_explicit_retry(self):
+        jid=self.enqueue(); self.store.hide([jid]); self.store.restore([jid])
+        self.assertEqual(self.store.get(jid)["status"],"canceled")
+        self.assertIsNone(self.store.claim_next_job())
+        self.store.retry(jid); self.assertEqual(self.store.claim_next_job()["id"],jid)
+    def test_removed_pending_job_cannot_be_claimed(self):
+        jid=self.enqueue(); self.store.hide([jid])
+        self.assertIsNone(self.store.claim_next_job())
+        self.assertIsNone(self.store.claim_next_job([jid]))
+    def test_claimed_pending_job_cannot_be_removed(self):
+        jid=self.enqueue(); self.assertIsNone(self.store.claim_next_job([]))
+        self.assertEqual(self.store.claim_next_job([jid])["id"],jid)
+        self.assertEqual(self.store.get(jid)["status"],"preparing")
+        self.assertEqual(self.store.hide([jid]),{"removed":[],"active":[jid]})
+    def test_two_workers_cannot_claim_same_job(self):
+        from concurrent.futures import ThreadPoolExecutor
+        from threading import Barrier
+        jid=self.enqueue(); barrier=Barrier(2)
+        def claim():
+            other=Store(self.store.data); barrier.wait(timeout=5)
+            return other.claim_next_job()
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            a=pool.submit(claim); b=pool.submit(claim)
+            claimed=[job for job in [a.result(timeout=10),b.result(timeout=10)] if job]
+        self.assertEqual([job["id"] for job in claimed],[jid])
     def test_metadata_only_change_is_duplicate(self):
         with Image.open(self.source) as im:
             meta=PngImagePlugin.PngInfo(); meta.add_text("note","different metadata")

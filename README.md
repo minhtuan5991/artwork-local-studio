@@ -6,7 +6,14 @@
 
 **[Tải bộ cài Windows](https://github.com/minhtuan5991/artwork-local-studio/releases/latest)** · [Hướng dẫn tiếng Việt](README-VI.md) · [Kết quả kiểm chứng](docs/VALIDATION-VI.md)
 
-## Phiên bản 0.2.1
+## Phiên bản 0.2.2
+
+- Chọn một/nhiều ảnh trong Queue bằng Ctrl/Shift hoặc Chọn tất cả; có số lượng ảnh đã chọn.
+- Xóa đã chọn, phím Delete và menu chuột phải; giữ ảnh đang xử lý, ảnh gốc và PNG đã lưu.
+- Hoàn tác xóa bằng nút hoặc Ctrl+Z trong danh sách. Ảnh chờ được khôi phục ở trạng thái Đã hủy để tránh tự chạy AI.
+- [Kiểm tra khả năng nâng cấp Qwen local ngày 26/10/2026](docs/QWEN-UPGRADE-2026-10-26-VI.md).
+
+## Giao diện từ 0.2.1
 
 - Forest green cho app, extension và logo.
 - Các bảng cài đặt, menu và danh sách chọn dùng nền trắng sáng, chữ đậm, kể cả khi Windows đang bật giao diện tối.
@@ -21,7 +28,9 @@
 
 ## Cài đặt
 
-Windows x64 10 phiên bản 1809 trở lên / Windows 11. Tải **ArtworkLocalStudio-Setup-0.2.1.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.1). ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
+Windows x64 10 phiên bản 1809 trở lên / Windows 11. Tải **ArtworkLocalStudio-Setup-0.2.2.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.2). ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
+
+Với workspace đang dùng portable 0.2.1, đóng app cũ rồi chạy **StartApp.cmd**: nếu 0.2.2 chưa có dữ liệu riêng, launcher mở EXE mới với data của 0.2.1 để giữ Queue, đường dẫn model và nơi lưu. Không xóa thư mục 0.2.1 trong trường hợp này. Để extension tự mở EXE mới khi app đóng, mở Cài đặt → Ảnh website → Đăng ký kết nối trong app mới.
 
 Bộ cài **không chứa trọng số model**. Bấm **Thiết lập Qwen** để tải khoảng 12 GB model/runtime có checksum, hoặc chọn bộ model và runtime đang có trong Cài đặt. Máy dùng GPU NVIDIA cần driver hỗ trợ CUDA 12. CPU được hỗ trợ nhưng chậm.
 

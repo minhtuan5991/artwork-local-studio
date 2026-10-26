@@ -190,7 +190,7 @@ class QueueRunner(threading.Thread):
     def run(self):
         try:
             while not self.stop_after.is_set():
-                job = self.store.next_job(self.ids)
+                job = self.store.claim_next_job(self.ids)
                 if not job:
                     break
                 self.current_id = job["id"]

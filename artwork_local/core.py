@@ -258,6 +258,24 @@ class Store:
                 row = con.execute("SELECT * FROM jobs WHERE status='queued' AND visible=1 ORDER BY position,created LIMIT 1").fetchone()
             return dict(row) if row else None
 
+    def claim_next_job(self, ids=None):
+        """Claim a visible job atomically so removal cannot race queue startup."""
+        with self.connection() as con:
+            con.execute("BEGIN IMMEDIATE")
+            if ids is not None and not ids:
+                return None
+            query = "SELECT * FROM jobs WHERE status='queued' AND visible=1"
+            parameters = []
+            if ids is not None:
+                query += " AND id IN (" + ",".join("?" for _ in ids) + ")"
+                parameters = list(ids)
+            row = con.execute(query + " ORDER BY position,created LIMIT 1", parameters).fetchone()
+            if not row:
+                return None
+            con.execute("UPDATE jobs SET status='preparing',message=?,updated=? WHERE id=?",
+                        ("Chuẩn bị xử lý…", time.time(), row["id"]))
+            return dict(row)
+
     def update(self, job_id, **values):
         allowed = {"status", "message", "progress", "elapsed", "master_path", "output_path", "error", "metadata", "position", "visible", "output_dir"}
         if not set(values).issubset(allowed):
@@ -285,10 +303,35 @@ class Store:
                     master_path="" if clear_master else job["master_path"], message="Đã đưa về Queue.")
 
     def hide(self, ids):
-        for job_id in ids:
-            job = self.get(job_id)
-            if job and job["status"] not in ACTIVE:
-                self.update(job_id, visible=0)
+        removed, active = [], []
+        with self.connection() as con:
+            con.execute("BEGIN IMMEDIATE")
+            for job_id in dict.fromkeys(ids):
+                job = con.execute("SELECT status,visible FROM jobs WHERE id=?", (job_id,)).fetchone()
+                if not job or not job["visible"]:
+                    continue
+                if job["status"] in ACTIVE:
+                    active.append(job_id)
+                    continue
+                con.execute("UPDATE jobs SET visible=0,updated=? WHERE id=?", (time.time(), job_id))
+                removed.append(job_id)
+        return {"removed": removed, "active": active}
+
+    def restore(self, ids):
+        restored = []
+        with self.connection() as con:
+            con.execute("BEGIN IMMEDIATE")
+            for job_id in dict.fromkeys(ids):
+                # Restoring a removed pending job must not restart inference
+                # automatically if a runner is still consuming the queue.
+                cursor = con.execute("""UPDATE jobs SET visible=1,updated=?,
+                    status=CASE WHEN status='queued' THEN 'canceled' ELSE status END,
+                    message=CASE WHEN status='queued' THEN ? ELSE message END
+                    WHERE id=? AND visible=0""",
+                    (time.time(), "Đã khôi phục. Chọn Thử lại / lưu tiếp để đưa về Queue.", job_id))
+                if cursor.rowcount:
+                    restored.append(job_id)
+        return restored
 
     def move(self, job_id, direction):
         rows = self.all(10000)

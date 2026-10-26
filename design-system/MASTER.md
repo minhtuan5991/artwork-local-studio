@@ -16,4 +16,5 @@ Skill: ui-ux-pro-max. Verified product search: Photo Editor & Filters (Minimalis
 - Explicit minimum control heights avoid compressed dropdowns seen in the previous version.
 - Canvas backing pixels are resized to actual viewport size and devicePixelRatio; one uniform scale preserves image proportions.
 - Native/web rotation previews must match the pixel transformation sent to inference.
+- Queue 0.2.2: show Select all, Clear selection and a selection count above the list. The bottom action row exposes Remove selected and Undo, with QC/logs retained in the More menu. Standard Ctrl/Shift selection and table-scoped Delete/Ctrl+A/Ctrl+Z stay available. Removing items keeps original/export files, skips active processing, and clears a removed item's preview. Undo is available in the current session and does not automatically restart removed pending jobs.
 - Pointer and keyboard support, visible focus, inline loading state, disabled actions while loading/sending, manual reload fallback when permission cannot be granted automatically.

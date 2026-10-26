@@ -80,3 +80,15 @@ App và extension có bốn điểm neo ở các góc vật lý của ảnh đ�
 EXE 0.2.1 đã mở giao diện, native host đã bác origin không được phép và đưa ảnh thử vào Queue mà không chạy AI. Bộ cài Inno Setup biên dịch thành công; các ZIP được kiểm tra toàn vẹn và có SHA256SUMS.txt. Không thử cài đè lên app đang dùng trong lượt này.
 
 Không thay model, sampler hoặc prompt so với 0.2.0; không chạy benchmark Qwen mới trong lượt cập nhật giao diện này.
+
+## Phiên bản 0.2.2 — 26/10/2026
+
+Thêm Chọn tất cả, Bỏ chọn, số lượng đã chọn, Xóa đã chọn và Hoàn tác ngay tại Queue. Ctrl/Shift chọn nhiều dòng; Delete/Ctrl+A/Ctrl+Z chỉ hoạt động trong danh sách, không chiếm thao tác sửa văn bản. Menu chuột phải có các thao tác chọn/xóa. Duyệt QC và Nhật ký chuyển vào Thao tác để giữ diện tích danh sách trên màn hình nhỏ.
+
+Xóa là bỏ khỏi danh sách, giữ file nguồn, RGBA, PNG đã xuất và lịch sử chống trùng. Hoàn tác trong phiên mở khôi phục các lần xóa theo thứ tự ngược; job đã lưu giữ trạng thái cũ, job chờ được đưa về Đã hủy để tránh tự chạy khi Queue đang hoạt động. Ảnh đang xử lý được bảo vệ. Lấy job kế tiếp và xóa dùng transaction SQLite để tránh vừa xóa vừa bắt đầu chạy cùng một job.
+
+46 unittest qua: chọn/xóa theo bộ lọc, bảo vệ job active và file/checksum kết quả, xóa/hoàn tác nhiều lần, xóa preview tương ứng, giữ preview nguồn chưa liên quan, giữ selection sau refresh, không lấy job đã xóa, và hai worker không nhận cùng một job. UI được chụp/kiểm tra ở 1280×800 và 1920×1080; danh sách cao hơn 250 px và nhãn nút không bị cắt.
+
+EXE/native host 0.2.2 đã mở giao diện, bác origin không được phép và đưa ảnh thử vào Queue. Bộ cài Inno Setup biên dịch thành công; các gói ZIP được kiểm tra toàn vẹn và có SHA256SUMS.txt. Không thử cài đè lên app người dùng đang mở. Queue portable 0.2.1 có 8 ảnh được giữ nguyên trong kiểm tra; StartApp.cmd có thể mở EXE mới với thư mục data cũ.
+
+[Kiểm tra mô hình ngày 26/10/2026](QWEN-UPGRADE-2026-10-26-VI.md) phân biệt Qwen3-VL encoder với Qwen-Image-3.0, và ghi nhận hướng nâng cấp local 2.1-Turbo. Bản này không thay model, runtime, prompt hay sampler; không tải trọng số mới hoặc chạy benchmark AI.

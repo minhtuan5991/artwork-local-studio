@@ -1,12 +1,12 @@
-# Artwork Local Studio 0.2.1
+# Artwork Local Studio 0.2.2
 
-Phiên bản 0.2.1: forest green, các bảng chọn nền sáng và điểm neo kéo xoay ở bốn góc ảnh.
+Phiên bản 0.2.2 bổ sung chọn nhiều ảnh, xóa khỏi Queue và hoàn tác. Giữ giao diện forest green, bảng chọn nền sáng và điểm neo kéo xoay ảnh.
 
 App Windows tiếng Việt dùng Qwen-Image-2.1 local để tách và tái tạo artwork. Không dùng API AI.
 
 ## Cài đặt trên Windows
 
-1. Tải **ArtworkLocalStudio-Setup-0.2.1.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.1), rồi chạy bộ cài. ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
+1. Tải **ArtworkLocalStudio-Setup-0.2.2.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.2), rồi chạy bộ cài. ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
 2. Chạy wizard. App cài cho tài khoản Windows hiện tại, không cần quyền quản trị. Có Start Menu, tùy chọn shortcut Desktop và kết nối Chrome/Edge.
 3. Mở app → **Thiết lập Qwen** để tải model/runtime vào ổ đủ dung lượng. Tổng model khoảng 11,6 GB; cần thêm dung lượng cho runtime, cache và kết quả.
 4. Nếu đã có model: **Cài đặt → Model & lưu ảnh**, chọn thư mục models và file runtime/sd-cli.exe đang có. Không cần tải lại.
@@ -22,7 +22,7 @@ Bộ cài không kèm trọng số hoặc CUDA runtime. Model tải theo revisio
 2. Với một ảnh, kéo điểm neo ở bất kỳ góc nào để xoay quanh tâm. Giữ Shift để xoay theo nấc 15°. Có thể dùng ±90° hoặc nhập góc chính xác; sau đó chọn Rectangle/Lasso. Đổi góc xoay sẽ xóa vùng chọn cũ.
 3. Thiết lập 1K/2K, trong suốt/trắng/chroma, giữ thiết kế/khôi phục chi tiết. Có ô nhập chữ xác nhận và yêu cầu sửa thêm.
 4. **Thêm vào Queue → Chạy Queue**. Queue nằm bên phải; thiết lập nằm dưới vùng ảnh.
-5. Chọn một ảnh trong Queue để xem nguồn/kết quả, trạng thái, thời gian và QC. Nút **Thao tác** chứa retry, chạy lại AI, xuất nền, đổi thứ tự và ẩn ảnh.
+5. Chọn một ảnh trong Queue để xem nguồn/kết quả, trạng thái và thời gian. Nút **Thao tác** chứa Duyệt QC, Nhật ký, retry, chạy lại AI, xuất nền và đổi thứ tự.
 
 Ảnh đưa vào model là PNG đã xoay/crop thật. Prompt yêu cầu đầu ra artwork thẳng và không giữ phối cảnh sản phẩm; mức độ chính xác vẫn cần kiểm tra bằng mắt.
 
@@ -57,6 +57,12 @@ Khi cập nhật app, vào trang Extensions và bấm Reload. Nếu chuyển t�
 ## Queue, chống trùng và QC
 
 Queue SQLite giữ qua lần mở app. Job đang chạy khi đóng bất thường chuyển Bị gián đoạn; retry chạy lại từ đầu. **Dừng sau ảnh này** hoàn tất ảnh hiện tại; **Hủy ảnh** dừng suy luận hiện tại.
+
+Chọn một dòng, giữ **Ctrl+click** để chọn từng ảnh hoặc **Shift+click** để chọn một dải. **Chọn tất cả** và **Ctrl+A** trong danh sách chỉ chọn ảnh đang hiển thị theo bộ lọc. **Bỏ chọn** xóa lựa chọn hiện tại.
+
+Bấm **Xóa đã chọn** hoặc **Delete** trong danh sách để bỏ ảnh khỏi Queue. Ảnh đang xử lý được giữ lại; ảnh gốc, PNG đã lưu và lịch sử chống trùng không bị xóa. Nếu đang xem một ảnh vừa xóa, vùng nguồn/kết quả được làm trống. Chuột phải cũng có menu chọn/xóa.
+
+**Hoàn tác** hoặc **Ctrl+Z** trong danh sách khôi phục từng lần xóa của phiên đang mở. Ảnh đã lưu giữ trạng thái cũ; ảnh chờ được khôi phục ở trạng thái Đã hủy để tránh tự chạy AI khi Queue vẫn hoạt động. Chọn **Thao tác → Thử lại / lưu tiếp** khi muốn xử lý ảnh đó. Việc xóa vẫn có hiệu lực khi mở lại app; lịch sử hoàn tác kết thúc khi đóng app.
 
 Trùng pixel đã chuẩn hóa + cấu hình sẽ được bỏ qua. Ảnh gần giống có cảnh báo. Đổi seed/prompt tạo job khác. Ẩn khỏi Queue giữ ảnh và lịch sử trùng.
 

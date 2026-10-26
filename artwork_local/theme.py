@@ -22,6 +22,10 @@ QPushButton#primary {background:#1F6B3A;color:white;border:1px solid #1F6B3A;fon
 QPushButton#primary:hover {background:#17532F;}
 QPushButton#primary:pressed {background:#103F23;}
 QPushButton#primary:disabled {background:#D4E8DA;border-color:#D4E8DA;color:#4C6755;}
+QPushButton#danger {background:#FFF7F5;color:#9D3226;border-color:#D89A91;}
+QPushButton#danger:hover {background:#FCE6E1;border-color:#9D3226;}
+QPushButton#danger:pressed {background:#F5D0C7;}
+QPushButton#danger:disabled {background:#F0F8F2;color:#6F8376;border-color:#D5E6DA;}
 QLabel#title {font-size:23px;font-weight:700;}
 QLabel#muted {color:#3F594A;}
 QLabel#section {font-size:12px;font-weight:700;color:#3F594A;}

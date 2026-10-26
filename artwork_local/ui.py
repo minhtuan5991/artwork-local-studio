@@ -8,7 +8,7 @@ import uuid
 from dataclasses import asdict
 from pathlib import Path
 from PIL import Image, ImageChops, ImageDraw
-from PySide6.QtCore import Qt, Signal, QObject, QPointF, QRectF, QTimer, QAbstractTableModel, QModelIndex, QUrl, QSize
+from PySide6.QtCore import Qt, Signal, QObject, QPointF, QRectF, QTimer, QAbstractTableModel, QModelIndex, QUrl, QSize, QItemSelectionModel
 from PySide6.QtGui import QColor, QPainter, QPen, QImage, QPolygonF, QPainterPath, QDesktopServices, QKeySequence, QShortcut, QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
@@ -235,7 +235,7 @@ class MainWindow(QMainWindow):
         for stale in self.store.inbox.glob("*.processing"):
             stale.rename(stale.with_suffix(".json"))
         self.bus=Bus(); self.runner=None; self.setup_running=False; self.setup_cancel=threading.Event()
-        self.source_name="artwork.png"; self.preview_id=None; self.import_count=0
+        self.source_name="artwork.png"; self.preview_id=None; self.import_count=0; self.removal_history=[]
         self.bus.event.connect(self.worker_event); self.bus.imported.connect(self.import_done)
         self.bus.setup.connect(self.setup_progress); self.bus.setup_done.connect(self.setup_done)
         self.setWindowTitle("Artwork Local Studio · Qwen-Image-2.1")
@@ -309,24 +309,42 @@ class MainWindow(QMainWindow):
         outputrow.addWidget(self.output_label,1); outputrow.addWidget(button("Thư mục lưu",self.choose_output))
         outputrow.addWidget(button("Thêm vào Queue",self.add_current,True)); formbox.addLayout(outputrow)
         leftbox.addWidget(options); split.addWidget(left)
-        queuecard=card(); queuecard.setMinimumWidth(340); queuecard.setMaximumWidth(520); q=QVBoxLayout(queuecard); q.setContentsMargins(16,16,16,16); q.setSpacing(12)
+        queuecard=card(); queuecard.setMinimumWidth(340); queuecard.setMaximumWidth(520); q=QVBoxLayout(queuecard); q.setContentsMargins(16,16,16,16); q.setSpacing(8)
         self.count_label=QLabel("QUEUE"); self.count_label.setObjectName("section"); q.addWidget(self.count_label)
         controls=QHBoxLayout(); self.run_button=button("Chạy Queue",lambda:self.start_queue(),True); controls.addWidget(self.run_button,1)
         controls.addWidget(button("Chạy đã chọn",lambda:self.start_queue(self.selected_ids())),1); q.addLayout(controls)
         pause=QHBoxLayout(); pause.addWidget(button("Dừng sau ảnh này",self.pause_queue),1); pause.addWidget(button("Hủy ảnh",self.cancel_job),1); q.addLayout(pause)
         self.progress=QProgressBar(); self.progress.setRange(0,100); self.progress.setValue(0); self.progress.setTextVisible(False); q.addWidget(self.progress)
         self.filter=combo([("Tất cả ảnh","all"),("Đang chờ","queued"),("Đã lưu","completed"),("Lỗi / gián đoạn","errors")]); self.filter.currentIndexChanged.connect(self.refresh); q.addWidget(self.filter)
+        selection_tools=QHBoxLayout(); selection_tools.setSpacing(8)
+        self.select_all_button=button("Chọn tất cả",self.select_all_queue)
+        self.select_all_button.setToolTip("Chọn tất cả ảnh đang hiển thị theo bộ lọc · Ctrl+A trong danh sách")
+        self.clear_selection_button=button("Bỏ chọn",self.clear_queue_selection)
+        selection_tools.addWidget(self.select_all_button); selection_tools.addWidget(self.clear_selection_button)
+        self.selection_count=muted("0 đã chọn"); selection_tools.addWidget(self.selection_count,1); q.addLayout(selection_tools)
         self.model=QueueModel(); self.table=QTableView(); self.table.setModel(self.model); self.table.setAlternatingRowColors(True)
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows); self.table.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.setAccessibleName("Danh sách ảnh nguồn trong Queue")
+        self.table.setToolTip("Ctrl+click: chọn từng ảnh · Shift+click: chọn một dải · Ctrl+A: chọn tất cả · Delete: xóa khỏi Queue")
         self.table.setShowGrid(False); self.table.verticalHeader().hide(); self.table.verticalHeader().setDefaultSectionSize(54)
         self.table.horizontalHeader().setSectionResizeMode(0,QHeaderView.ResizeMode.Stretch); self.table.setColumnWidth(1,120)
         for column in [2,3,4,5]: self.table.setColumnHidden(column,True)
         self.table.selectionModel().selectionChanged.connect(self.selection_changed); q.addWidget(self.table,1)
+        self.remove_button=button("Xóa đã chọn",self.hide_selected); self.remove_button.setObjectName("danger")
+        self.remove_button.setToolTip("Xóa khỏi danh sách Queue; giữ ảnh gốc và PNG đã lưu · Delete")
+        self.undo_remove_button=button("Hoàn tác",self.undo_remove); self.undo_remove_button.setToolTip("Khôi phục lần xóa gần nhất · Ctrl+Z trong danh sách")
+        self.table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.show_queue_menu)
+        for keys,callback in [("Delete",self.hide_selected),("Ctrl+A",self.select_all_queue),("Ctrl+Z",self.undo_remove)]:
+            shortcut=QShortcut(QKeySequence(keys),self.table,activated=callback)
+            shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.queue_info=muted("Chọn ảnh trong Queue để xem nguồn và kết quả."); q.addWidget(self.queue_info)
-        actions=QHBoxLayout(); actions.addWidget(button("Duyệt QC",self.review_selected),1); actions.addWidget(button("Nhật ký",self.show_logs),1)
+        actions=QHBoxLayout(); actions.setSpacing(8); actions.addWidget(self.remove_button,1); actions.addWidget(self.undo_remove_button,1)
         more=QPushButton("Thao tác"); menu=QMenu(more)
-        for label,callback in [("Thử lại / lưu tiếp",self.retry_selected),("Chạy lại AI",lambda:self.retry_selected(True)),("Xuất nền đang chọn",self.export_selected),
-                ("Di chuyển lên",lambda:self.move_selected(-1)),("Di chuyển xuống",lambda:self.move_selected(1)),("Ẩn khỏi Queue",self.hide_selected)]:
+        more.setToolTip("Duyệt QC, nhật ký, chạy lại AI và các thao tác với ảnh đã chọn")
+        for label,callback in [("Duyệt QC",self.review_selected),("Nhật ký",self.show_logs),("Thử lại / lưu tiếp",self.retry_selected),("Chạy lại AI",lambda:self.retry_selected(True)),("Xuất nền đang chọn",self.export_selected),
+                ("Di chuyển lên",lambda:self.move_selected(-1)),("Di chuyển xuống",lambda:self.move_selected(1)),("Xóa khỏi Queue",self.hide_selected)]:
             action=menu.addAction(label); action.triggered.connect(lambda checked=False,fn=callback:fn())
         more.setMenu(menu); actions.addWidget(more,1); q.addLayout(actions); split.addWidget(queuecard); split.setSizes([960,380]); split.setStretchFactor(0,1)
         footer=QHBoxLayout(); self.status=muted(""); footer.addWidget(self.status,1)
@@ -458,6 +476,22 @@ class MainWindow(QMainWindow):
         for canvas in [self.source,self.result]: canvas.bg=value; canvas.update()
     def selected_ids(self):
         return [self.model.jobs[i.row()]["id"] for i in self.table.selectionModel().selectedRows()]
+    def select_all_queue(self): self.table.selectAll()
+    def clear_queue_selection(self):
+        self.table.clearSelection(); self.table.setCurrentIndex(QModelIndex())
+    def show_queue_menu(self,position):
+        index=self.table.indexAt(position)
+        if index.isValid() and not self.table.selectionModel().isRowSelected(index.row(),QModelIndex()):
+            self.table.selectRow(index.row())
+        menu=QMenu(self.table)
+        for label,callback,enabled in [
+                ("Chọn tất cả ảnh hiển thị",self.select_all_queue,bool(self.model.jobs)),
+                ("Bỏ chọn",self.clear_queue_selection,bool(self.selected_ids())),
+                ("Xóa đã chọn",self.hide_selected,self.remove_button.isEnabled()),
+                ("Hoàn tác xóa",self.undo_remove,bool(self.removal_history))]:
+            action=menu.addAction(label); action.setEnabled(enabled)
+            action.triggered.connect(lambda checked=False,fn=callback:fn())
+        menu.exec(self.table.viewport().mapToGlobal(position))
     def refresh(self,*args):
         selected=set(self.selected_ids()); rows=self.store.all(10000); choice=self.filter.currentData()
         total=len(rows); waiting=sum(j["status"]=="queued" for j in rows)
@@ -465,7 +499,6 @@ class MainWindow(QMainWindow):
         if choice!="all": rows=[j for j in rows if j["status"]==choice or choice=="errors" and j["status"] in {"failed","save_failed","needs_review","interrupted","canceled"}]
         selection=self.table.selectionModel(); selection.blockSignals(True)
         self.model.replace(rows)
-        from PySide6.QtCore import QItemSelectionModel
         for i,job in enumerate(rows):
             if job["id"] in selected: selection.select(self.model.index(i,0),QItemSelectionModel.SelectionFlag.Select|QItemSelectionModel.SelectionFlag.Rows)
         selection.blockSignals(False)
@@ -475,7 +508,16 @@ class MainWindow(QMainWindow):
         self.selection_changed()
     def selection_changed(self,*args):
         ids=self.selected_ids()
-        if len(ids)!=1: return
+        selected=set(ids)
+        self.selection_count.setText(f"{len(ids)} đã chọn")
+        self.select_all_button.setEnabled(bool(self.model.jobs))
+        self.clear_selection_button.setEnabled(bool(ids))
+        self.remove_button.setEnabled(any(job["id"] in selected and job["status"] not in ACTIVE for job in self.model.jobs))
+        self.undo_remove_button.setEnabled(bool(self.removal_history))
+        if len(ids)!=1:
+            self.queue_info.setText(f"Đã chọn {len(ids)} ảnh · Delete để xóa khỏi Queue." if ids else
+                "Ctrl/Shift+click để chọn nhiều ảnh.\nXóa khỏi Queue giữ ảnh gốc và PNG đã lưu.")
+            return
         job=self.store.get(ids[0]); key=(job["id"],job["master_path"])
         if self.preview_id==key: return
         if not self.preview_id or self.preview_id[0]!=key[0]:
@@ -509,7 +551,32 @@ class MainWindow(QMainWindow):
             if job["status"]=="save_failed": self.store.update(job_id,output_dir=self.settings.values["output_dir"])
             self.store.retry(job_id,rerun=rerun)
         self.refresh()
-    def hide_selected(self): self.store.hide(self.selected_ids()); self.refresh()
+    def hide_selected(self):
+        ids=self.selected_ids()
+        if not ids: return
+        result=self.store.hide(ids); removed=result["removed"]
+        if removed:
+            self.removal_history.append(removed)
+            if self.preview_id and self.preview_id[0] in removed:
+                self.preview_id=None; self.source.load(None); self.result.load(None)
+                self.source_name="artwork.png"; self.source_status.setText("Chọn ảnh → Xoay thẳng → Khoanh vùng.")
+        self.refresh()
+        message=f"Đã xóa {len(removed)} ảnh khỏi Queue. Ảnh gốc và PNG đã lưu được giữ."
+        if result["active"]: message+=f" Giữ {len(result['active'])} ảnh đang xử lý."
+        if removed: message+=" Có thể bấm Hoàn tác."
+        self.status.setText(message)
+    def undo_remove(self):
+        if not self.removal_history: return
+        restored=self.store.restore(self.removal_history.pop())
+        # Return to the full list so the restored items are visible even when
+        # their state no longer matches the filter used before removal.
+        self.filter.blockSignals(True); self.filter.setCurrentIndex(self.filter.findData("all")); self.filter.blockSignals(False)
+        self.refresh(); selection=self.table.selectionModel(); selection.blockSignals(True); selection.clearSelection()
+        for i,job in enumerate(self.model.jobs):
+            if job["id"] in restored:
+                selection.select(self.model.index(i,0),QItemSelectionModel.SelectionFlag.Select|QItemSelectionModel.SelectionFlag.Rows)
+        selection.blockSignals(False); self.selection_changed()
+        self.status.setText(f"Đã khôi phục {len(restored)} ảnh. Ảnh chờ đã xóa cần Thử lại / lưu tiếp để chạy lại.")
     def move_selected(self,direction):
         ids=self.selected_ids()
         if len(ids)==1: self.store.move(ids[0],direction); self.refresh()
