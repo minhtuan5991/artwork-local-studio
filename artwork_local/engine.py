@@ -7,11 +7,65 @@ import re
 import subprocess
 import threading
 import time
+import uuid
 from pathlib import Path
 
-from .core import JobOptions, Store, canonical_json, export_png, sha256_file, validate_rgba
+from .core import JobOptions, Store, canonical_json, export_png, sha256_file, validate_rgba, normalized_image
 
 NO_WINDOW = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+
+
+def check_job_resources(config, options):
+    """Fail before loading weights for known unsupported native-2K budgets."""
+    device = str(config.get("device", "cuda0"))
+    if options.size <= 1024 or not re.fullmatch(r"cuda\d+", device):
+        return
+    total = None
+    try:
+        result = subprocess.run(["nvidia-smi", "--query-gpu=index,memory.total", "--format=csv,noheader,nounits"],
+            capture_output=True, text=True, timeout=5, creationflags=NO_WINDOW)
+        if result.returncode == 0:
+            for line in result.stdout.splitlines():
+                index, memory = line.split(",", 1)
+                if int(index.strip()) == int(device[4:]):
+                    total = float(memory.strip())
+    except (OSError, ValueError, subprocess.TimeoutExpired):
+        pass
+    if total is not None and total <= 8192:
+        raise ValueError(f"Thiếu VRAM cho Qwen native 2K: GPU này có {total/1024:.1f} GiB. "
+            "Chọn Kích thước 1K rồi thêm ảnh vào Queue. 2K trên cấu hình hiện tại cần hơn 8 GiB "
+            "ở bước tính toán, offload và VAE tiling không khắc phục được phần này. "
+            "Có thể chọn CPU trong Cài đặt nếu cần thử 2K, nhưng sẽ rất chậm.")
+    budget = float(config.get("max_vram", 0))
+    if 0 < budget < 9:
+        raise ValueError(f"Giới hạn VRAM {budget:g} GiB quá thấp cho Qwen native 2K. "
+            "Chọn 1K, hoặc tăng giới hạn lên ít nhất 9 GiB khi GPU có đủ VRAM trống. "
+            "Kích thước ảnh không được tự động giảm.")
+
+
+def prepare_reference(reference, output, options, config):
+    from PIL import Image
+    with Image.open(reference) as source:
+        original_size = source.size
+    limit = 1024 if config.get("profile", "low") == "low" else options.size
+    if max(original_size) <= limit:
+        return reference, {"reference_original_size": list(original_size), "reference_size": list(original_size), "reference_resized": False}
+    image = normalized_image(reference)
+    image.thumbnail((limit, limit), Image.Resampling.LANCZOS)
+    target = output.parent / (".reference-" + uuid.uuid4().hex + ".png")
+    target.parent.mkdir(parents=True, exist_ok=True)
+    image.save(target, "PNG")
+    return target, {"reference_original_size": list(original_size), "reference_size": list(image.size), "reference_resized": True}
+
+
+def runtime_error(code, lines, options):
+    detail = "\n".join(lines[-12:])
+    diagnostic = "\n".join(lines).lower()
+    if any(token in diagnostic for token in ["cannot make enough memory", "out of memory", "failed to allocate", "insufficient memory"]):
+        return RuntimeError(f"Thiếu bộ nhớ khi xử lý {options.size}×{options.size}. "
+            "Với GPU 6 GB, chọn 1K và chế độ Ít VRAM; đóng ứng dụng dùng GPU khác. "
+            "Ảnh gốc được giữ để thử lại.\nChi tiết runtime:\n" + detail)
+    return RuntimeError(f"Runtime Qwen kết thúc với mã {code}.\n" + detail)
 
 
 def make_prompt(options: JobOptions) -> str:
@@ -106,12 +160,22 @@ class CliEngine:
         problems = readiness(self.config, self.manifest)
         if problems:
             raise ValueError("\n".join(problems))
+        check_job_resources(self.config, options)
         verify_models(self.config, self.manifest, lambda msg: report("preparing", 0, msg), cancel)
+        original_reference = Path(reference).resolve()
+        reference, reference_metadata = prepare_reference(reference, output, options, self.config)
+        temporary_reference = Path(reference) if Path(reference).resolve() != original_reference else None
+        if reference_metadata["reference_resized"]:
+            report("preparing", 0, "Chuẩn bị ảnh tham chiếu vừa bộ nhớ; giữ nguyên ảnh nguồn và kích thước đầu ra.")
         command = build_command(self.config, self.manifest, reference, output, options)
         report("preparing", 0, "Nạp Qwen-Image-2.1 local…")
         output.parent.mkdir(parents=True, exist_ok=True)
-        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                                   cwd=Path(command[0]).parent, creationflags=NO_WINDOW)
+        try:
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                       cwd=Path(command[0]).parent, creationflags=NO_WINDOW)
+        except BaseException:
+            if temporary_reference: temporary_reference.unlink(missing_ok=True)
+            raise
         messages = queue.Queue()
         def read_output():
             buffer = bytearray()
@@ -160,12 +224,13 @@ class CliEngine:
                     report(None, None, None, line)
             code = process.wait()
             if code:
-                raise RuntimeError(f"Runtime Qwen kết thúc với mã {code}.\n" + "\n".join(lines[-12:]))
+                raise runtime_error(code, lines, options)
             if not output.is_file():
                 raise RuntimeError("Runtime hoàn tất nhưng chưa tìm thấy file PNG đầu ra.")
             return {"backend": "stable-diffusion.cpp master-929-3f8527a", "quantization": "Q4_K_M",
                     "model": "Qwen-Image-2.1", "prompt_revision": 4, "cfg_scale": 1.0,
                     "quality_review": "pending",
+                    "reference_preprocess_revision": 1, **reference_metadata,
                     "prompt": make_prompt(options), "options": options.__dict__,
                     "duration_inference_seconds": round(time.monotonic() - start, 3),
                     "files": {s["name"]: s["sha256"] for s in self.manifest["files"]}}
@@ -175,6 +240,7 @@ class CliEngine:
                 process.wait(timeout=10)
             reader.join(timeout=2)
             process.stdout.close()
+            if temporary_reference: temporary_reference.unlink(missing_ok=True)
 
 
 class QueueRunner(threading.Thread):

@@ -6,7 +6,14 @@
 
 **[Tải bộ cài Windows](https://github.com/minhtuan5991/artwork-local-studio/releases/latest)** · [Hướng dẫn tiếng Việt](README-VI.md) · [Kết quả kiểm chứng](docs/VALIDATION-VI.md)
 
-## Phiên bản 0.2.2
+## Phiên bản 0.2.3
+
+- Phát hiện sớm cấu hình native 2K vượt khả năng GPU 6–8 GB; hướng dẫn chuyển 1K hoặc thử CPU, giữ nguyên kích thước job đã yêu cầu.
+- Giới hạn ảnh tham chiếu lớn theo profile để giảm bộ nhớ, giữ tỷ lệ/alpha và giữ nguyên file gốc. File tham chiếu tạm được dọn sau xử lý.
+- Hiển thị rõ lỗi thiếu bộ nhớ và cập nhật trạng thái preview khi job đổi trạng thái.
+- Đã chạy lại một ảnh thực ở 1K/20 bước trên RTX 3050 Laptop 6 GB: khoảng 268,6 giây, PNG RGBA có alpha thật, không chạm mép. Native 2K trên máy 6 GB chưa khả thi với backend hiện tại.
+
+## Queue từ 0.2.2
 
 - Chọn một/nhiều ảnh trong Queue bằng Ctrl/Shift hoặc Chọn tất cả; có số lượng ảnh đã chọn.
 - Xóa đã chọn, phím Delete và menu chuột phải; giữ ảnh đang xử lý, ảnh gốc và PNG đã lưu.
@@ -28,9 +35,9 @@
 
 ## Cài đặt
 
-Windows x64 10 phiên bản 1809 trở lên / Windows 11. Tải **ArtworkLocalStudio-Setup-0.2.2.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.2). ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
+Windows x64 10 phiên bản 1809 trở lên / Windows 11. Tải **ArtworkLocalStudio-Setup-0.2.3.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.3). ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
 
-Với workspace đang dùng portable 0.2.1, đóng app cũ rồi chạy **StartApp.cmd**: nếu 0.2.2 chưa có dữ liệu riêng, launcher mở EXE mới với data của 0.2.1 để giữ Queue, đường dẫn model và nơi lưu. Không xóa thư mục 0.2.1 trong trường hợp này. Để extension tự mở EXE mới khi app đóng, mở Cài đặt → Ảnh website → Đăng ký kết nối trong app mới.
+Với bản portable đã gom về một thư mục, chạy **ArtworkLocalStudio.exe** hoặc **StartApp.cmd**; data, models và runtime nằm cạnh EXE. Mã nguồn có công cụ sao chép/đối chiếu dữ liệu portable cũ trong tools/consolidate_data.py; công cụ không xóa thư mục nguồn và không tự di chuyển dữ liệu khi cài installer. Để extension tự mở EXE mới, mở Cài đặt → Ảnh website → Đăng ký kết nối trong app mới.
 
 Bộ cài **không chứa trọng số model**. Bấm **Thiết lập Qwen** để tải khoảng 12 GB model/runtime có checksum, hoặc chọn bộ model và runtime đang có trong Cài đặt. Máy dùng GPU NVIDIA cần driver hỗ trợ CUDA 12. CPU được hỗ trợ nhưng chậm.
 

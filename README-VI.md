@@ -1,12 +1,12 @@
-# Artwork Local Studio 0.2.2
+# Artwork Local Studio 0.2.3
 
-Phiên bản 0.2.2 bổ sung chọn nhiều ảnh, xóa khỏi Queue và hoàn tác. Giữ giao diện forest green, bảng chọn nền sáng và điểm neo kéo xoay ảnh.
+Phiên bản 0.2.3 sửa xử lý ảnh lớn trên máy ít VRAM, báo lỗi bộ nhớ rõ ràng và giữ các thao tác chọn/xóa/hoàn tác trong Queue.
 
 App Windows tiếng Việt dùng Qwen-Image-2.1 local để tách và tái tạo artwork. Không dùng API AI.
 
 ## Cài đặt trên Windows
 
-1. Tải **ArtworkLocalStudio-Setup-0.2.2.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.2), rồi chạy bộ cài. ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
+1. Tải **ArtworkLocalStudio-Setup-0.2.3.exe** từ [GitHub Releases](https://github.com/minhtuan5991/artwork-local-studio/releases/tag/v0.2.3), rồi chạy bộ cài. ZIP Windows là bản portable; ZIP Extension dùng để tải riêng extension Chrome/Edge.
 2. Chạy wizard. App cài cho tài khoản Windows hiện tại, không cần quyền quản trị. Có Start Menu, tùy chọn shortcut Desktop và kết nối Chrome/Edge.
 3. Mở app → **Thiết lập Qwen** để tải model/runtime vào ổ đủ dung lượng. Tổng model khoảng 11,6 GB; cần thêm dung lượng cho runtime, cache và kết quả.
 4. Nếu đã có model: **Cài đặt → Model & lưu ảnh**, chọn thư mục models và file runtime/sd-cli.exe đang có. Không cần tải lại.
@@ -27,6 +27,10 @@ Bộ cài không kèm trọng số hoặc CUDA runtime. Model tải theo revisio
 Ảnh đưa vào model là PNG đã xoay/crop thật. Prompt yêu cầu đầu ra artwork thẳng và không giữ phối cảnh sản phẩm; mức độ chính xác vẫn cần kiểm tra bằng mắt.
 
 Mặc định: CFG 1, Euler, 20 bước, Q4, Flash Attention toàn bộ, mmap/offload, budget 3,5 GiB, Q8 cache và VAE tiling. GPU có đủ VRAM trống có thể tăng budget/chọn profile khác trong Cài đặt. Đã chạy fixture 1K với budget 4,5 GiB khoảng **212,3 giây** trên RTX 3050 Laptop 6 GB / RAM 11,7 GiB. Mục tiêu 1–2 phút chưa đạt; 2K và CPU chưa được benchmark.
+
+Với GPU 6–8 GB, chọn **1K** và **Ít VRAM**. Nhật ký thực tế cho thấy native 2K cần hơn 8 GiB ở bước tính toán; offload không giải quyết được phần workspace này. App chặn sớm cấu hình đã biết không đủ và không tự giảm kích thước job. Có thể thử CPU khi cần 2K nhưng rất chậm. Ảnh tham chiếu lớn được thu nhỏ giữ tỷ lệ trong bộ xử lý, bản nguồn vẫn nguyên vẹn; profile Ít VRAM giới hạn cạnh dài tham chiếu ở 1024 px.
+
+Bản 0.2.3 đã kiểm chứng một ảnh thực ở 1K/20 bước, budget 4,5 GiB, Q8 cache và VAE tiling: khoảng **268,6 giây** trên RTX 3050 Laptop 6 GB. PNG 1024×1024 RGBA có alpha thật và không chạm mép. Đây là kết quả một ảnh; không bảo đảm tốc độ/chất lượng cho ảnh khác. Nội dung vẫn cần duyệt QC.
 
 Qwen3-VL encoder và VAE là các thành phần của pipeline Qwen. Không thêm OCR, rembg hoặc model tách nền khác.
 

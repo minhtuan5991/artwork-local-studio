@@ -92,3 +92,11 @@ Xóa là bỏ khỏi danh sách, giữ file nguồn, RGBA, PNG đã xuất và l
 EXE/native host 0.2.2 đã mở giao diện, bác origin không được phép và đưa ảnh thử vào Queue. Bộ cài Inno Setup biên dịch thành công; các gói ZIP được kiểm tra toàn vẹn và có SHA256SUMS.txt. Không thử cài đè lên app người dùng đang mở. Queue portable 0.2.1 có 8 ảnh được giữ nguyên trong kiểm tra; StartApp.cmd có thể mở EXE mới với thư mục data cũ.
 
 [Kiểm tra mô hình ngày 26/10/2026](QWEN-UPGRADE-2026-10-26-VI.md) phân biệt Qwen3-VL encoder với Qwen-Image-3.0, và ghi nhận hướng nâng cấp local 2.1-Turbo. Bản này không thay model, runtime, prompt hay sampler; không tải trọng số mới hoặc chạy benchmark AI.
+
+## Phiên bản 0.2.3 — lỗi bộ nhớ và thư mục portable
+
+Đã xác định lỗi native 2K trên RTX 3050 Laptop 6 GB: runtime thiếu workspace 8,6–9,3 GiB ở bước diffusion, và ảnh tham chiếu rất lớn có thể thiếu bộ nhớ VAE khi không tiling. Bản sửa kiểm tra sớm cấu hình native 2K không phù hợp, báo lỗi bộ nhớ có hướng dẫn và giới hạn kích thước ảnh tham chiếu theo profile mà không sửa file gốc. Kích thước output không bị tự đổi. Prompt revision 4, model, sampler và runtime giữ nguyên; reference_preprocess_revision tăng lên 1 trong khóa chống trùng để tránh dùng nhầm kết quả trước thay đổi tiền xử lý.
+
+Đã chạy lại nguồn thực 2048×2020 ở 1K/20 bước, Q8 cache, budget 4,5 GiB và VAE tiling. Tham chiếu được đưa về 1024×1010; thời gian toàn bộ 268,641 giây. PNG 1024×1024 RGBA có 539.138 pixel alpha <16, alpha min/max 0/255, không có foreground chạm mép. Đã xuất PNG qua luồng lưu kết quả của app. Đây là một phép thử thực, không phải cam kết đạt 1–2 phút hoặc bảo đảm nội dung clone chính xác.
+
+Kiểm thử bổ sung cho chặn native 2K trước khi nạp model, CPU/1K không bị chặn, giới hạn VRAM trên GPU lớn hơn, giữ file nguồn/alpha/tỷ lệ khi thu nhỏ tham chiếu, báo lỗi dễ hiểu, cập nhật caption mà không mất góc xoay, và gộp dữ liệu có đối chiếu checksum. Công cụ gộp không xóa thư mục nguồn; dữ liệu cũ được giữ thành lịch sử ẩn, Queue đang dùng giữ hiển thị.

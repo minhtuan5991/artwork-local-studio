@@ -203,7 +203,7 @@ class Store:
         # Background is export-only. A new job may reuse an earlier valid master.
         inference = {k: v for k, v in option_data.items() if k not in {"background", "chroma"}}
         inference_key = hashlib.sha256(canonical_json({"source": prepared["pixel_hash"],
-                        "inference": inference, "prompt_revision": 4, "cfg_scale": 1.0, "model": "Qwen-Image-2.1"}).encode()).hexdigest()
+                        "inference": inference, "prompt_revision": 4, "reference_preprocess_revision": 1, "cfg_scale": 1.0, "model": "Qwen-Image-2.1"}).encode()).hexdigest()
         job_key = hashlib.sha256(canonical_json({"inference": inference_key, "options": option_data}).encode()).hexdigest()
         if force:
             job_key += ":" + uuid.uuid4().hex

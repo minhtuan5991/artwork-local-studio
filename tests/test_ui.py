@@ -41,6 +41,14 @@ class UiTests(unittest.TestCase):
     def test_settings_and_default_options(self):
         self.assertEqual(self.window.current_options(),JobOptions()); self.window.size.setCurrentIndex(1); self.window.background.setCurrentIndex(2)
         options=self.window.current_options(); self.assertEqual(options.size,2048); self.assertEqual(options.background,"chroma")
+    def test_job_status_refresh_keeps_source_rotation_and_updates_caption(self):
+        ids=self.add_jobs(1); self.window.table.selectRow(0)
+        self.window.source.set_angle(30)
+        self.window.store.update(ids[0],status="failed",message="Thiếu VRAM",elapsed=42)
+        self.window.refresh()
+        self.assertIn("Thiếu VRAM",self.window.source_status.text())
+        self.assertIn("42s",self.window.queue_info.text())
+        self.assertEqual(self.window.source.angle,30)
     def add_jobs(self,count=3):
         prepared=self.window.store.prepare(self.source)
         ids=[self.window.store.enqueue(prepared,replace(JobOptions(),seed=42+i),self.settings.values["output_dir"])["job_id"] for i in range(count)]

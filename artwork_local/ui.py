@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QMessageBox, QSplitter, QTableView, QAbstractItemView, QProgressBar, QCheckBox,
     QDialog, QDialogButtonBox, QTabWidget, QHeaderView, QFrame, QGridLayout, QDoubleSpinBox, QMenu, QSizePolicy)
 from .core import JobOptions, Store, Settings, STATUS_LABELS, ACTIVE, normalized_image, export_png
-from .engine import QueueRunner, readiness
+from .engine import QueueRunner, readiness, check_job_resources
 from .hardware import hardware_summary
 from .image_ops import rotate_input, rotated_size, drag_rotation
 from . import __version__
@@ -290,6 +290,7 @@ class MainWindow(QMainWindow):
         caption=QLabel("THIẾT LẬP ĐẦU RA"); caption.setObjectName("section"); formbox.addWidget(caption)
         fields=QGridLayout(); fields.setHorizontalSpacing(10); fields.setVerticalSpacing(5)
         self.size=combo([("1K · 1024",1024),("2K · 2048",2048)])
+        self.size.setToolTip("GPU 6–8 GB: chọn 1K. Native 2K cần nhiều VRAM hơn; app không tự giảm kích thước đầu ra.")
         self.background=combo([("Trong suốt","transparent"),("Trắng","white"),("Chroma","chroma")])
         self.chroma=QLineEdit("#00FF00"); self.chroma.setMaxLength(7)
         self.detail=combo([("Giữ thiết kế","preserve"),("Khôi phục","restore")])
@@ -519,11 +520,12 @@ class MainWindow(QMainWindow):
                 "Ctrl/Shift+click để chọn nhiều ảnh.\nXóa khỏi Queue giữ ảnh gốc và PNG đã lưu.")
             return
         job=self.store.get(ids[0]); key=(job["id"],job["master_path"])
-        if self.preview_id==key: return
         if not self.preview_id or self.preview_id[0]!=key[0]:
             self.source_name=job["name"]; self.source.load(job["source_path"])
+        if self.preview_id!=key:
+            self.result.load(job["master_path"] or None)
         self.preview_id=key
-        self.result.load(job["master_path"] or None); self.source_status.setText(job["name"]+" · "+(job["message"] or STATUS_LABELS[job["status"]]))
+        self.source_status.setText(job["name"]+" · "+(job["message"] or STATUS_LABELS[job["status"]]))
         opts=json.loads(job["options"]); meta=json.loads(job["metadata"])
         self.queue_info.setText(str(opts["size"])+" px · "+{"transparent":"Trong suốt","white":"Trắng","chroma":"Chroma"}[opts["background"]]+
             " · "+str(round(job["elapsed"]))+"s\nQC: "+{"pending":"Chưa duyệt","passed":"Đã duyệt","failed":"Cần sửa"}.get(meta.get("quality_review","pending"),"Chưa duyệt"))
@@ -536,6 +538,12 @@ class MainWindow(QMainWindow):
         if any(not j["master_path"] for j in pending):
             problems=readiness(self.settings.values,self.manifest)
             if problems: self.error("\n".join(problems)); return
+            try:
+                for job in pending:
+                    if not job["master_path"]:
+                        check_job_resources(self.settings.values, JobOptions.from_dict(json.loads(job["options"])))
+            except ValueError as exc:
+                self.error(exc); return
         self.runner=QueueRunner(self.store,self.settings.values,self.manifest,self.bus.event.emit,ids)
         self.run_button.setEnabled(False); self.runner.start()
     def worker_event(self,kind,job_id):
